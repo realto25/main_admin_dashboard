@@ -1,0 +1,46 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model Project {
+    id          String   @id @default(cuid())
+    name        String
+    location    String
+    description String
+    imageUrl    String
+    plots       Plot[]
+    createdAt   DateTime @default(now())
+}
+
+model Plot {
+    id          String     @id @default(cuid())
+    title       String
+    dimension   String
+    price       Int
+    priceLabel  String
+    status      PlotStatus @default(AVAILABLE)
+    imageUrls   String[]
+    location    String
+    latitude    Float
+    longitude   Float
+    facing      String
+    amenities   String[]
+    mapEmbedUrl String?
+    project     Project    @relation(fields: [projectId], references: [id])
+    projectId   String
+    createdAt   DateTime   @default(now())
+}
+
+enum PlotStatus {
+    AVAILABLE
+    ADVANCE
+    SOLD
+}
