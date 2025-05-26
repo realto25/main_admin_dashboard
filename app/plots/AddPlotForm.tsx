@@ -2,14 +2,20 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Plus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
-import { X, Plus, Upload } from "lucide-react";
 
 interface AddPlotFormProps {
   projectId: string;
@@ -32,12 +38,11 @@ const AddPlotForm = ({ projectId, onSuccess }: AddPlotFormProps) => {
     facing: "",
     amenities: [""],
     mapEmbedUrl: "",
+    description: "",
   });
 
   const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement
-    >
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -148,6 +153,7 @@ const AddPlotForm = ({ projectId, onSuccess }: AddPlotFormProps) => {
         facing: "",
         amenities: [""],
         mapEmbedUrl: "",
+        description: "",
       });
 
       toast.success("Plot created successfully!");
@@ -236,7 +242,10 @@ const AddPlotForm = ({ projectId, onSuccess }: AddPlotFormProps) => {
 
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
-              <Select value={formData.status} onValueChange={handleStatusChange}>
+              <Select
+                value={formData.status}
+                onValueChange={handleStatusChange}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -256,6 +265,19 @@ const AddPlotForm = ({ projectId, onSuccess }: AddPlotFormProps) => {
                 value={formData.facing}
                 onChange={handleChange}
                 placeholder="e.g., North"
+                required
+              />
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="description">Description</Label>
+              <textarea
+                id="description"
+                name="description"
+                value={formData.description}
+                onChange={handleChange}
+                className="w-full min-h-[100px] px-3 py-2 border rounded-md"
+                placeholder="Enter plot description..."
                 required
               />
             </div>
@@ -371,11 +393,7 @@ const AddPlotForm = ({ projectId, onSuccess }: AddPlotFormProps) => {
             )}
           </div>
 
-          <Button
-            type="submit"
-            disabled={loading}
-            className="w-full"
-          >
+          <Button type="submit" disabled={loading} className="w-full">
             {loading ? "Adding..." : "Add Plot"}
           </Button>
         </form>

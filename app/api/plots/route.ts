@@ -15,6 +15,7 @@ const plotSchema = z.object({
   longitude: z.number(),
   facing: z.string().min(1, "Facing is required"),
   amenities: z.array(z.string()),
+  description: z.string().min(1, "Description is required"),
   projectId: z.string().min(1, "Project ID is required"),
 });
 
