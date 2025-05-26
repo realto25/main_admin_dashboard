@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-// Validation schema for plot update
+// ✅ Validation schema for plot updates
 const plotSchema = z.object({
   title: z.string().min(1, "Title is required"),
   dimension: z.string().min(1, "Dimension is required"),
@@ -19,12 +19,14 @@ const plotSchema = z.object({
 });
 
 export async function GET(
-  request: Request,
-  context: { params: { id: string } }
+  _request: Request,
+  context: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await context.params;
+
   try {
     const plot = await prisma.plot.findUnique({
-      where: { id: context.params.id },
+      where: { id },
       include: { project: true },
     });
 
@@ -41,35 +43,36 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await context.params;
+
   try {
     const body = await request.json();
-    const plotId = context.params.id;
 
-    // Validate the request body
     const validatedData = plotSchema.parse({
       ...body,
-      price: parseInt(body.price),
-      latitude: parseFloat(body.latitude),
-      longitude: parseFloat(body.longitude),
+      price: Number(body.price),
+      latitude: Number(body.latitude),
+      longitude: Number(body.longitude),
     });
 
-    // Check if plot exists
+    // 🔍 Check if plot exists
     const existingPlot = await prisma.plot.findUnique({
-      where: { id: plotId },
+      where: { id },
     });
 
     if (!existingPlot) {
       return NextResponse.json({ error: "Plot not found" }, { status: 404 });
     }
 
-    const plot = await prisma.plot.update({
-      where: { id: plotId },
+    // ✏️ Update plot
+    const updatedPlot = await prisma.plot.update({
+      where: { id },
       data: validatedData,
     });
 
-    return NextResponse.json(plot);
+    return NextResponse.json(updatedPlot);
   } catch (error) {
     console.error("Error updating plot:", error);
 
@@ -85,15 +88,14 @@ export async function PUT(
 }
 
 export async function DELETE(
-  request: Request,
-  context: { params: { id: string } }
+  _request: Request,
+  context: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const plotId = context.params.id;
+  const { id } = await context.params;
 
-    // Check if plot exists
+  try {
     const existingPlot = await prisma.plot.findUnique({
-      where: { id: plotId },
+      where: { id },
     });
 
     if (!existingPlot) {
@@ -101,7 +103,7 @@ export async function DELETE(
     }
 
     await prisma.plot.delete({
-      where: { id: plotId },
+      where: { id },
     });
 
     return NextResponse.json({ message: "Plot deleted successfully" });

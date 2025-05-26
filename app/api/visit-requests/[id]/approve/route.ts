@@ -4,10 +4,10 @@ import { NextResponse } from "next/server";
 import QRCode from "qrcode";
 
 export async function POST(
-  req: Request,
-  { params }: { params: { id: string } }
+  _req: Request,
+  context: { params: Promise<{ id: string }> }
 ) {
-  const { id } = params;
+  const { id } = await context.params;
 
   try {
     const visit = await prisma.visitRequest.findUnique({ where: { id } });

@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing fields" }, { status: 400 });
   }
 
-  const visit = await prisma.VisitRequest.create({
+  const visit = await prisma.visitRequest.create({
     data: {
       name,
       email,

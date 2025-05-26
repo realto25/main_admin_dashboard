@@ -1,17 +1,16 @@
-// app/plots/[id]/page.tsx
 import { Suspense } from "react";
 import ProjectDetailClient from "./ProjectDetailClient";
 
-export default async function ProjectDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
-  const projectId = params.id;
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default async function ProjectDetailPage({ params }: PageProps) {
+  const { id } = await params;
 
   return (
     <Suspense fallback={<div>Loading...</div>}>
-      <ProjectDetailClient projectId={projectId} />
+      <ProjectDetailClient projectId={id} />
     </Suspense>
   );
 }

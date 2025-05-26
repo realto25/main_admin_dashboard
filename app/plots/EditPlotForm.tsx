@@ -7,10 +7,17 @@ import { toast } from "sonner";
 
 interface EditPlotFormProps {
   plotId: string;
+  isOpen: boolean;
+  onClose: () => void;
   onSuccess?: () => void;
 }
 
-const EditPlotForm = ({ plotId, onSuccess }: EditPlotFormProps) => {
+const EditPlotForm = ({
+  plotId,
+  isOpen,
+  onClose,
+  onSuccess,
+}: EditPlotFormProps) => {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -29,6 +36,8 @@ const EditPlotForm = ({ plotId, onSuccess }: EditPlotFormProps) => {
   });
 
   useEffect(() => {
+    if (!isOpen) return;
+
     const fetchPlot = async () => {
       try {
         const response = await fetch(`/api/plots/${plotId}`);
@@ -49,7 +58,7 @@ const EditPlotForm = ({ plotId, onSuccess }: EditPlotFormProps) => {
     };
 
     fetchPlot();
-  }, [plotId]);
+  }, [plotId, isOpen]);
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -152,72 +161,59 @@ const EditPlotForm = ({ plotId, onSuccess }: EditPlotFormProps) => {
     } catch (error) {
       console.error("Error updating plot:", error);
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to update plot. Please try again."
+        error instanceof Error ? error.message : "Failed to update plot"
       );
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="bg-white border-2 border-black p-6 rounded-lg shadow-md mb-8">
-      <h2 className="text-xl font-semibold mb-4">Edit Plot</h2>
+  if (!isOpen) return null;
 
-      <form onSubmit={handleSubmit}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="mb-4">
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">Edit Plot</h2>
+          <Button variant="ghost" onClick={onClose}>
+            ✕
+          </Button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
             <label className="block text-sm font-medium mb-1">Title</label>
             <input
               type="text"
               name="title"
               value={formData.title}
               onChange={handleChange}
-              className="w-full px-3 py-2 border rounded-md"
+              className="w-full p-2 border rounded"
               required
             />
           </div>
-
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-1">Location</label>
-            <input
-              type="text"
-              name="location"
-              value={formData.location}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border rounded-md"
-              required
-            />
-          </div>
-
-          <div className="mb-4">
+          <div>
             <label className="block text-sm font-medium mb-1">Dimension</label>
             <input
               type="text"
               name="dimension"
               value={formData.dimension}
               onChange={handleChange}
-              className="w-full px-3 py-2 border rounded-md"
-              placeholder="e.g., 30x40"
+              className="w-full p-2 border rounded"
               required
             />
           </div>
-
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-1">Price (₹)</label>
+          <div>
+            <label className="block text-sm font-medium mb-1">Price</label>
             <input
               type="number"
               name="price"
               value={formData.price}
               onChange={handleChange}
-              className="w-full px-3 py-2 border rounded-md"
+              className="w-full p-2 border rounded"
               required
-              min="0"
             />
           </div>
-
-          <div className="mb-4">
+          <div>
             <label className="block text-sm font-medium mb-1">
               Price Label
             </label>
@@ -226,147 +222,138 @@ const EditPlotForm = ({ plotId, onSuccess }: EditPlotFormProps) => {
               name="priceLabel"
               value={formData.priceLabel}
               onChange={handleChange}
-              className="w-full px-3 py-2 border rounded-md"
-              placeholder="e.g., Starting from 50L"
+              className="w-full p-2 border rounded"
               required
             />
           </div>
-
-          <div className="mb-4">
+          <div>
             <label className="block text-sm font-medium mb-1">Status</label>
             <select
               name="status"
               value={formData.status}
               onChange={handleChange}
-              className="w-full px-3 py-2 border rounded-md"
+              className="w-full p-2 border rounded"
+              required
             >
               <option value="AVAILABLE">Available</option>
               <option value="ADVANCE">Advance</option>
               <option value="SOLD">Sold</option>
             </select>
           </div>
-
-          <div className="mb-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Location</label>
+            <input
+              type="text"
+              name="location"
+              value={formData.location}
+              onChange={handleChange}
+              className="w-full p-2 border rounded"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Latitude</label>
+            <input
+              type="number"
+              name="latitude"
+              value={formData.latitude}
+              onChange={handleChange}
+              className="w-full p-2 border rounded"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Longitude</label>
+            <input
+              type="number"
+              name="longitude"
+              value={formData.longitude}
+              onChange={handleChange}
+              className="w-full p-2 border rounded"
+              required
+            />
+          </div>
+          <div>
             <label className="block text-sm font-medium mb-1">Facing</label>
             <input
               type="text"
               name="facing"
               value={formData.facing}
               onChange={handleChange}
-              className="w-full px-3 py-2 border rounded-md"
-              placeholder="e.g., North"
+              className="w-full p-2 border rounded"
               required
             />
           </div>
-
-          <div className="mb-4">
+          <div>
             <label className="block text-sm font-medium mb-1">
-              Amenities (comma-separated)
+              Map Embed URL
             </label>
             <input
-              type="text"
-              name="amenities"
-              value={formData.amenities.join(",")}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  amenities: e.target.value.split(","),
-                }))
-              }
-              className="w-full px-3 py-2 border rounded-md"
-              placeholder="e.g., Park, Gym, Pool"
+              type="url"
+              name="mapEmbedUrl"
+              value={formData.mapEmbedUrl}
+              onChange={handleChange}
+              className="w-full p-2 border rounded"
             />
           </div>
-        </div>
-
-        {/* Image URLs Section */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium mb-2">Image URLs</label>
-          {formData.imageUrls.map((url, index) => (
-            <div key={index} className="flex gap-2 mb-2">
-              <input
-                type="text"
-                value={url}
-                onChange={(e) => handleImageChange(index, e.target.value)}
-                className="flex-1 px-3 py-2 border rounded-md"
-                placeholder="https://example.com/image.jpg"
-                required={index === 0}
-              />
-              {index > 0 && (
+          <div>
+            <label className="block text-sm font-medium mb-1">Image URLs</label>
+            {formData.imageUrls.map((url, index) => (
+              <div key={index} className="flex gap-2 mb-2">
+                <input
+                  type="url"
+                  value={url}
+                  onChange={(e) => handleImageChange(index, e.target.value)}
+                  className="flex-1 p-2 border rounded"
+                  placeholder="Enter image URL"
+                />
                 <Button
                   type="button"
+                  variant="destructive"
                   onClick={() => removeImageField(index)}
-                  className="bg-red-500 text-white px-3 py-2 rounded-md hover:bg-red-600"
                 >
-                  Remove
+                  ✕
                 </Button>
-              )}
-            </div>
-          ))}
-          <Button
-            type="button"
-            onClick={addImageField}
-            className="mt-2 bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
-          >
-            Add Another Image
-          </Button>
-        </div>
-
-        {/* Google Maps Embed Section */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium mb-2">
-            Google Maps Embed URL
-          </label>
-          <input
-            type="text"
-            name="mapEmbedUrl"
-            value={formData.mapEmbedUrl}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border rounded-md mb-2"
-            placeholder="Paste Google Maps embed URL here"
-            required
-          />
-          <div className="text-sm text-gray-600 mb-2">
-            To get the embed URL:
-            <ol className="list-decimal list-inside ml-2">
-              <li>Go to Google Maps and find your location</li>
-              <li>Click "Share" and select "Embed a map"</li>
-              <li>Copy the src URL from the iframe code</li>
-              <li>Paste it here</li>
-            </ol>
+              </div>
+            ))}
+            <Button type="button" onClick={addImageField}>
+              Add Image URL
+            </Button>
           </div>
-          {formData.mapEmbedUrl && (
-            <div className="h-[400px] w-full border rounded-md overflow-hidden">
-              <iframe
-                src={formData.mapEmbedUrl}
-                width="100%"
-                height="100%"
-                style={{ border: 0 }}
-                allowFullScreen
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-              ></iframe>
-            </div>
-          )}
-        </div>
-
-        <div className="flex gap-4">
-          <Button
-            type="submit"
-            disabled={loading}
-            className="bg-orange-500 border-2 border-black text-white px-4 py-2 rounded-md hover:bg-orange-700"
-          >
-            {loading ? "Updating..." : "Update Plot"}
-          </Button>
-          <Button
-            type="button"
-            onClick={onSuccess}
-            className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600"
-          >
-            Cancel
-          </Button>
-        </div>
-      </form>
+          <div>
+            <label className="block text-sm font-medium mb-1">Amenities</label>
+            {formData.amenities.map((amenity, index) => (
+              <div key={index} className="flex gap-2 mb-2">
+                <input
+                  type="text"
+                  value={amenity}
+                  onChange={(e) => handleAmenityChange(index, e.target.value)}
+                  className="flex-1 p-2 border rounded"
+                  placeholder="Enter amenity"
+                />
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={() => removeAmenityField(index)}
+                >
+                  ✕
+                </Button>
+              </div>
+            ))}
+            <Button type="button" onClick={addAmenityField}>
+              Add Amenity
+            </Button>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };

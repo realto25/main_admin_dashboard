@@ -4,8 +4,21 @@
 import axios from "axios";
 import { useEffect, useState } from "react";
 
+interface VisitRequest {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  date: string;
+  time: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  qrCode?: string;
+  plotId: string;
+  createdAt: string;
+}
+
 export default function VisitRequestsPage() {
-  const [requests, setRequests] = useState([]);
+  const [requests, setRequests] = useState<VisitRequest[]>([]);
 
   useEffect(() => {
     axios.get("/api/visit-requests").then((res) => setRequests(res.data));
@@ -31,8 +44,8 @@ export default function VisitRequestsPage() {
           <p>
             <strong>Status:</strong> {req.status}
           </p>
-          {req.qrCodeUrl && (
-            <img src={req.qrCodeUrl} alt="QR Code" className="mt-2 w-32" />
+          {req.qrCode && (
+            <img src={req.qrCode} alt="QR Code" className="mt-2 w-32" />
           )}
           {req.status === "PENDING" && (
             <button
