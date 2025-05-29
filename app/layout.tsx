@@ -1,5 +1,6 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { StagewiseToolbar } from "@stagewise/toolbar-next";
 import type { Metadata } from "next";
 import { DM_Sans } from "next/font/google";
 import { cookies } from "next/headers";
@@ -32,6 +33,9 @@ export default async function RootLayout({
             <SidebarTrigger />
             {children}
           </main>
+          {process.env.NODE_ENV === "development" && (
+            <StagewiseToolbar config={{ plugins: [] }} />
+          )}
         </SidebarProvider>
       </body>
     </html>

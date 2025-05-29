@@ -10,6 +10,7 @@ import {
   GalleryVerticalEnd,
   Map,
   PieChart,
+  QrCode,
   Settings2,
   SquareTerminal,
   StarIcon,
@@ -55,18 +56,18 @@ const data = {
   ],
   navMain: [
     {
-      title: "Playground",
-      url: "#",
-      icon: SquareTerminal,
+      title: "Plots",
+      url: "/plots",
+      icon: Frame,
       isActive: true,
       items: [
         {
-          title: "History",
-          url: "#",
+          title: "Add Project",
+          url: "/plots",
         },
         {
-          title: "Starred",
-          url: "#",
+          title: "Add Plots",
+          url: "/plots",
         },
         {
           title: "Settings",
@@ -75,17 +76,17 @@ const data = {
       ],
     },
     {
-      title: "Models",
-      url: "#",
-      icon: Bot,
+      title: "Visit Requests",
+      url: "/visit-requests",
+      icon: QrCode,
       items: [
         {
-          title: "Genesis",
-          url: "#",
+          title: "Requets",
+          url: "/visit-requests",
         },
         {
-          title: "Explorer",
-          url: "#",
+          title: "Feedback",
+          url: "/feedback",
         },
         {
           title: "Quantum",
@@ -94,35 +95,35 @@ const data = {
       ],
     },
     {
-      title: "Documentation",
+      title: "Clients",
       url: "#",
       icon: BookOpen,
       items: [
         {
-          title: "Introduction",
+          title: "Add Client",
           url: "#",
         },
         {
-          title: "Get Started",
+          title: "Sell Request",
           url: "#",
         },
         {
-          title: "Tutorials",
+          title: "Camera",
           url: "#",
         },
         {
-          title: "Changelog",
+          title: "Chats",
           url: "#",
         },
       ],
     },
     {
-      title: "Settings",
+      title: "Managers",
       url: "#",
       icon: Settings2,
       items: [
         {
-          title: "General",
+          title: "Attendance",
           url: "#",
         },
         {
@@ -130,7 +131,7 @@ const data = {
           url: "#",
         },
         {
-          title: "Billing",
+          title: "Manage",
           url: "#",
         },
         {
