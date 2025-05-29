@@ -33,8 +33,8 @@ const AddPlotForm = ({ projectId, onSuccess }: AddPlotFormProps) => {
     status: "AVAILABLE" as const,
     imageUrls: [""],
     location: "",
-    latitude: 0,
-    longitude: 0,
+    latitude: "",
+    longitude: "",
     facing: "",
     amenities: [""],
     mapEmbedUrl: "",
@@ -45,7 +45,14 @@ const AddPlotForm = ({ projectId, onSuccess }: AddPlotFormProps) => {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    // Special handling for latitude and longitude
+    if (name === 'latitude' || name === 'longitude') {
+      // Only allow numbers and decimal points
+      const numericValue = value.replace(/[^0-9.-]/g, '');
+      setFormData((prev) => ({ ...prev, [name]: numericValue }));
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleStatusChange = (value: string) => {
@@ -100,11 +107,27 @@ const AddPlotForm = ({ projectId, onSuccess }: AddPlotFormProps) => {
     }
   };
 
+  const handleMapEmbedUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Extract the src URL if a full iframe code is pasted
+    const srcMatch = value.match(/src="([^"]+)"/);
+    const mapUrl = srcMatch ? srcMatch[1] : value;
+    setFormData((prev) => ({ ...prev, mapEmbedUrl: mapUrl }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     try {
       setLoading(true);
+
+      // Validate latitude and longitude
+      const latitude = parseFloat(formData.latitude);
+      const longitude = parseFloat(formData.longitude);
+      
+      if (isNaN(latitude) || isNaN(longitude)) {
+        throw new Error("Please enter valid latitude and longitude values");
+      }
 
       // Filter out empty image URLs and amenities
       const filteredImageUrls = formData.imageUrls.filter(
@@ -124,6 +147,8 @@ const AddPlotForm = ({ projectId, onSuccess }: AddPlotFormProps) => {
           imageUrls: filteredImageUrls,
           amenities: filteredAmenities,
           price: parseInt(formData.price),
+          latitude: latitude,
+          longitude: longitude,
           projectId,
         }),
       });
@@ -148,8 +173,8 @@ const AddPlotForm = ({ projectId, onSuccess }: AddPlotFormProps) => {
         status: "AVAILABLE",
         imageUrls: [""],
         location: "",
-        latitude: 0,
-        longitude: 0,
+        latitude: "",
+        longitude: "",
         facing: "",
         amenities: [""],
         mapEmbedUrl: "",
@@ -269,6 +294,34 @@ const AddPlotForm = ({ projectId, onSuccess }: AddPlotFormProps) => {
               />
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="latitude">Latitude</Label>
+              <Input
+                id="latitude"
+                name="latitude"
+                value={formData.latitude}
+                onChange={handleChange}
+                placeholder="e.g., 12.9716"
+                required
+                type="text"
+                pattern="-?[0-9]*\.?[0-9]*"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="longitude">Longitude</Label>
+              <Input
+                id="longitude"
+                name="longitude"
+                value={formData.longitude}
+                onChange={handleChange}
+                placeholder="e.g., 77.5946"
+                required
+                type="text"
+                pattern="-?[0-9]*\.?[0-9]*"
+              />
+            </div>
+
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="description">Description</Label>
               <textarea
@@ -357,7 +410,7 @@ const AddPlotForm = ({ projectId, onSuccess }: AddPlotFormProps) => {
           </div>
 
           {/* Google Maps Embed Section */}
-          <div className="space-y-4">
+          <div className="space-y-4 md:col-span-2">
             <Label htmlFor="mapEmbedUrl" className="text-base font-medium">
               Google Maps Embed URL
             </Label>
@@ -365,8 +418,8 @@ const AddPlotForm = ({ projectId, onSuccess }: AddPlotFormProps) => {
               id="mapEmbedUrl"
               name="mapEmbedUrl"
               value={formData.mapEmbedUrl}
-              onChange={handleChange}
-              placeholder="Paste Google Maps embed URL here"
+              onChange={handleMapEmbedUrlChange}
+              placeholder="Paste Google Maps embed URL or iframe code here"
               required
             />
             <div className="text-sm text-muted-foreground">
@@ -374,7 +427,7 @@ const AddPlotForm = ({ projectId, onSuccess }: AddPlotFormProps) => {
               <ol className="list-decimal list-inside space-y-1 ml-2">
                 <li>Go to Google Maps and find your location</li>
                 <li>Click "Share" and select "Embed a map"</li>
-                <li>Copy the src URL from the iframe code</li>
+                <li>Copy the src URL from the iframe code or the entire iframe code</li>
                 <li>Paste it here</li>
               </ol>
             </div>
