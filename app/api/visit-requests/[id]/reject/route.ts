@@ -1,9 +1,11 @@
-
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
-  const { id } = params;
+export async function PATCH(
+  _req: Request,
+  context: { params: Promise<{ id: string }> }
+) {
+  const { id } = await context.params;
 
   try {
     const updated = await prisma.visitRequest.update({
@@ -11,8 +13,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       data: {
         status: "REJECTED",
         qrCode: null,
-        expiresAt: null
-      }
+        expiresAt: null,
+      },
     });
 
     return NextResponse.json(updated);

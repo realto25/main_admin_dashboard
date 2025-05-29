@@ -46,9 +46,9 @@ const AddPlotForm = ({ projectId, onSuccess }: AddPlotFormProps) => {
   ) => {
     const { name, value } = e.target;
     // Special handling for latitude and longitude
-    if (name === 'latitude' || name === 'longitude') {
+    if (name === "latitude" || name === "longitude") {
       // Only allow numbers and decimal points
-      const numericValue = value.replace(/[^0-9.-]/g, '');
+      const numericValue = value.replace(/[^0-9.-]/g, "");
       setFormData((prev) => ({ ...prev, [name]: numericValue }));
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
@@ -124,7 +124,7 @@ const AddPlotForm = ({ projectId, onSuccess }: AddPlotFormProps) => {
       // Validate latitude and longitude
       const latitude = parseFloat(formData.latitude);
       const longitude = parseFloat(formData.longitude);
-      
+
       if (isNaN(latitude) || isNaN(longitude)) {
         throw new Error("Please enter valid latitude and longitude values");
       }
@@ -427,7 +427,10 @@ const AddPlotForm = ({ projectId, onSuccess }: AddPlotFormProps) => {
               <ol className="list-decimal list-inside space-y-1 ml-2">
                 <li>Go to Google Maps and find your location</li>
                 <li>Click "Share" and select "Embed a map"</li>
-                <li>Copy the src URL from the iframe code or the entire iframe code</li>
+                <li>
+                  Copy the src URL from the iframe code or the entire iframe
+                  code
+                </li>
                 <li>Paste it here</li>
               </ol>
             </div>
