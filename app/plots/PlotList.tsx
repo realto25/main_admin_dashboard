@@ -4,6 +4,13 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Edit, IndianRupee, MapPin, Ruler, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -25,6 +32,7 @@ interface Plot {
   amenities: string[];
   mapEmbedUrl: string;
   createdAt: string;
+  ownerId: string;
 }
 
 interface PlotListProps {
@@ -36,6 +44,12 @@ const PlotList = ({ projectId }: PlotListProps) => {
   const [plots, setPlots] = useState<Plot[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingPlotId, setEditingPlotId] = useState<string | null>(null);
+
+  // Placeholder for current user (replace with your auth/context logic)
+  const currentUser = {
+    id: "client-id-123", // Replace with actual client id
+    role: "CLIENT", // or 'ADMIN'
+  };
 
   const fetchPlots = async () => {
     try {
@@ -187,6 +201,11 @@ const PlotList = ({ projectId }: PlotListProps) => {
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
+                  {/* Sell Button for client-owned plots */}
+                  {plot.ownerId === currentUser.id &&
+                    currentUser.role === "CLIENT" && (
+                      <SellPlotButton plotId={plot.id} onSell={fetchPlots} />
+                    )}
                 </div>
               </div>
             </CardContent>
@@ -209,5 +228,81 @@ const PlotList = ({ projectId }: PlotListProps) => {
     </>
   );
 };
+
+function SellPlotButton({
+  plotId,
+  onSell,
+}: {
+  plotId: string;
+  onSell: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSell = async () => {
+    if (!reason.trim()) {
+      toast.error("Please provide a reason to sell.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/plots/${plotId}/sell`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+      });
+      if (!res.ok) throw new Error("Failed to notify admin");
+      toast.success("Sell request sent to admin.");
+      setOpen(false);
+      setReason("");
+      onSell();
+    } catch (error) {
+      toast.error("Failed to send sell request");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-orange-600 border-orange-600 hover:bg-orange-50 ml-1"
+        >
+          Sell
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Reason to Sell</DialogTitle>
+        </DialogHeader>
+        <textarea
+          value={reason}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+            setReason(e.target.value)
+          }
+          placeholder="Please provide your reason for selling this plot."
+          rows={4}
+          className="w-full border rounded p-2 text-sm focus:outline-none focus:ring focus:border-blue-300 min-h-[80px]"
+        />
+        <div className="flex justify-end gap-2 pt-2">
+          <Button
+            variant="outline"
+            onClick={() => setOpen(false)}
+            disabled={loading}
+          >
+            Cancel
+          </Button>
+          <Button onClick={handleSell} disabled={loading}>
+            {loading ? "Sending..." : "Send to Admin"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export default PlotList;

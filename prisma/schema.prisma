@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -33,12 +30,53 @@ model Plot {
   longitude     Float
   facing        String
   amenities     String[]
-  mapEmbedUrl   String?
+  mapEmbedUrl   String?        @db.Text
   description   String         @db.Text
   project       Project        @relation(fields: [projectId], references: [id])
   projectId     String
+  owner         User?          @relation("PlotOwner", fields: [ownerId], references: [id])
+  ownerId       String?
   visitRequests VisitRequest[]
+  camera        Camera?
+  clientPlot    ClientPlot?
+  SellRequest   SellRequest[]
   createdAt     DateTime       @default(now())
+}
+
+model User {
+  id               String         @id @default(cuid())
+  clerkId          String         @unique // ✅ Clerk integration ID
+  name             String
+  email            String         @unique
+  phone            String?
+  role             UserRole       @default(USER)
+  visitRequests    VisitRequest[]
+  feedback         Feedback[]
+  ownedPlots       Plot[]         @relation("PlotOwner")
+  clientPlots      ClientPlot[]
+  sentMessages     Message[]      @relation("SentMessages")
+  receivedMessages Message[]      @relation("ReceivedMessages")
+  SellRequest      SellRequest[]
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+model ClientPlot {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  plot      Plot     @relation(fields: [plotId], references: [id])
+  plotId    String   @unique
+  createdAt DateTime @default(now())
+}
+
+model Camera {
+  id        String   @id @default(cuid())
+  plot      Plot     @relation(fields: [plotId], references: [id])
+  plotId    String   @unique
+  ipAddress String
+  label     String?
+  createdAt DateTime @default(now())
 }
 
 model VisitRequest {
@@ -49,27 +87,56 @@ model VisitRequest {
   date      DateTime
   time      String
   status    VisitStatus @default(PENDING)
-  qrCode    String? // can be a URL or token
-  expiresAt DateTime? // used to expire QR
+  qrCode    String?
+  expiresAt DateTime?
   plot      Plot        @relation(fields: [plotId], references: [id])
   plotId    String
+  user      User?       @relation(fields: [userId], references: [id])
+  userId    String?
+  feedback  Feedback?
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
-
-  // 👇 Add this line for the reverse relation to Feedback
-  feedback Feedback?
 }
 
 model Feedback {
-  id               String   @id @default(cuid())
-  bookingId        String   @unique
+  id               String       @id @default(cuid())
+  bookingId        String       @unique
   rating           Int
   experience       String
   suggestions      String
   purchaseInterest Boolean?
-  createdAt        DateTime @default(now())
+  booking          VisitRequest @relation(fields: [bookingId], references: [id])
+  user             User         @relation(fields: [userId], references: [id])
+  userId           String
+  createdAt        DateTime     @default(now())
+}
 
-  booking VisitRequest @relation(fields: [bookingId], references: [id])
+model Message {
+  id         String   @id @default(cuid())
+  content    String
+  sender     User     @relation("SentMessages", fields: [senderId], references: [id])
+  senderId   String
+  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  receiverId String
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
+
+model SellRequest {
+  id        String   @id @default(cuid())
+  plot      Plot     @relation(fields: [plotId], references: [id])
+  plotId    String
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  reason    String
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+}
+
+enum UserRole {
+  ADMIN
+  USER
+  CLIENT
 }
 
 enum PlotStatus {
@@ -82,4 +149,5 @@ enum VisitStatus {
   PENDING
   APPROVED
   REJECTED
+  COMPLETED
 }

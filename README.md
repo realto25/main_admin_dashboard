@@ -123,3 +123,137 @@ Realestate_project-main
 ```"# admin_main_dashboard" 
 "# main_admin_dashboard" 
 "# main_admin_dashboard" 
+
+```
+Realestate_project-main
+├─ app
+│  ├─ api
+│  │  ├─ auth
+│  │  │  └─ [...nextauth]
+│  │  ├─ cameras
+│  │  │  ├─ route.ts
+│  │  │  └─ [id]
+│  │  │     └─ route.ts
+│  │  ├─ clients
+│  │  │  ├─ route.ts
+│  │  │  └─ [id]
+│  │  │     └─ route.ts
+│  │  ├─ feedback
+│  │  │  └─ route.ts
+│  │  ├─ messages
+│  │  │  └─ route.ts
+│  │  ├─ notifications
+│  │  │  └─ route.ts
+│  │  ├─ plots
+│  │  │  ├─ route.ts
+│  │  │  └─ [id]
+│  │  │     ├─ assign
+│  │  │     │  └─ route.ts
+│  │  │     └─ route.ts
+│  │  ├─ projects
+│  │  │  └─ route.ts
+│  │  ├─ upload
+│  │  ├─ uploadthing
+│  │  └─ visit-requests
+│  │     ├─ route.ts
+│  │     └─ [id]
+│  │        ├─ approve
+│  │        │  └─ route.ts
+│  │        └─ reject
+│  │           └─ route.ts
+│  ├─ dashboard
+│  │  ├─ cameras
+│  │  │  └─ page.tsx
+│  │  ├─ clients
+│  │  │  └─ page.tsx
+│  │  └─ layout.tsx
+│  ├─ favicon.ico
+│  ├─ feedback
+│  │  ├─ columns.tsx
+│  │  └─ page.tsx
+│  ├─ globals.css
+│  ├─ layout.tsx
+│  ├─ page.tsx
+│  ├─ plots
+│  │  ├─ AddPlotForm.tsx
+│  │  ├─ AddProjectForm.tsx
+│  │  ├─ EditPlotForm.tsx
+│  │  ├─ page.tsx
+│  │  ├─ PlotList.tsx
+│  │  └─ [id]
+│  │     ├─ page.tsx
+│  │     └─ ProjectDetailClient.tsx
+│  ├─ visit-requests
+│  │  └─ page.tsx
+│  └─ _components
+│     └─ SideBar.tsx
+├─ components
+│  ├─ app-sidebar.tsx
+│  ├─ AssignCameraDialog.tsx
+│  ├─ AssignPlotDialog.tsx
+│  ├─ CameraList.tsx
+│  ├─ nav-main.tsx
+│  ├─ nav-projects.tsx
+│  ├─ nav-user.tsx
+│  ├─ NotificationBell.tsx
+│  ├─ team-switcher.tsx
+│  └─ ui
+│     ├─ avatar.tsx
+│     ├─ badge.tsx
+│     ├─ breadcrumb.tsx
+│     ├─ button.tsx
+│     ├─ card.tsx
+│     ├─ collapsible.tsx
+│     ├─ data-table.tsx
+│     ├─ dialog.tsx
+│     ├─ dropdown-menu.tsx
+│     ├─ form.tsx
+│     ├─ input.tsx
+│     ├─ label.tsx
+│     ├─ select.tsx
+│     ├─ separator.tsx
+│     ├─ sheet.tsx
+│     ├─ sidebar.tsx
+│     ├─ skeleton.tsx
+│     ├─ sonner.tsx
+│     ├─ table.tsx
+│     └─ tooltip.tsx
+├─ components.json
+├─ hooks
+│  └─ use-mobile.ts
+├─ lib
+│  ├─ collections
+│  ├─ notifications.ts
+│  ├─ prisma.ts
+│  ├─ types.ts
+│  └─ utils.ts
+├─ next.config.ts
+├─ package-lock.json
+├─ package.json
+├─ postcss.config.mjs
+├─ prisma
+│  ├─ migrations
+│  │  ├─ 20250524182734_init
+│  │  │  └─ migration.sql
+│  │  ├─ 20250525033928_add_map_embed_url
+│  │  │  └─ migration.sql
+│  │  ├─ 20250525135734_add_plot_description
+│  │  │  └─ migration.sql
+│  │  ├─ 20250525145302_add_visit_requests
+│  │  │  └─ migration.sql
+│  │  ├─ 20250526051311_add_feedback_table
+│  │  │  └─ migration.sql
+│  │  ├─ 20250529180020_add_client_functionality
+│  │  │  └─ migration.sql
+│  │  └─ migration_lock.toml
+│  └─ schema.prisma
+├─ public
+│  ├─ globe.svg
+│  ├─ logo.svg
+│  ├─ next.svg
+│  ├─ vercel.svg
+│  └─ window.svg
+├─ README.md
+└─ tsconfig.json
+
+```
