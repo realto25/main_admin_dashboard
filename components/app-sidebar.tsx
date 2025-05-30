@@ -35,6 +35,17 @@ const navMainItems = [
     items: [], // No nested items for dashboard usually
   },
   {
+    title: "Clients",
+    url: "/clients",
+    icon: Users,
+    items: [
+      { title: "All Clients", url: "/clients" },
+      { title: "Sell Requests", url: "/sell-requests" },
+      { title: "Camera Access", url: "/cameras" },
+    
+    ],
+  },
+  {
     title: "Plots",
     url: "/plots", // Assuming main plots page is at /plots
     icon: Frame,

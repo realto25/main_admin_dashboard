@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 // ✅ Validation schema for plot updates
@@ -18,12 +18,12 @@ const plotSchema = z.object({
   mapEmbedUrl: z.string().url("Invalid map embed URL").optional(),
 });
 
-export async function GET(
-  _request: Request,
-  context: { params: Promise<{ id: string }> }
-) {
-  const { id } = await context.params;
+type RouteContext = {
+  params: Promise<{ id: string }>;
+};
 
+export async function GET(request: NextRequest, context: RouteContext) {
+  const { id } = await context.params;
   try {
     const plot = await prisma.plot.findUnique({
       where: { id },
@@ -41,12 +41,8 @@ export async function GET(
   }
 }
 
-export async function PUT(
-  request: Request,
-  context: { params: Promise<{ id: string }> }
-) {
+export async function PUT(request: NextRequest, context: RouteContext) {
   const { id } = await context.params;
-
   try {
     const body = await request.json();
 
@@ -87,12 +83,8 @@ export async function PUT(
   }
 }
 
-export async function DELETE(
-  _request: Request,
-  context: { params: Promise<{ id: string }> }
-) {
+export async function DELETE(request: NextRequest, context: RouteContext) {
   const { id } = await context.params;
-
   try {
     const existingPlot = await prisma.plot.findUnique({
       where: { id },

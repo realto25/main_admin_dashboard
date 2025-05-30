@@ -1,16 +1,16 @@
 import { prisma } from "@/lib/prisma";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const data = await prisma.visitRequest.findMany({
     orderBy: { createdAt: "desc" },
   });
   return NextResponse.json(data);
 }
 
-export async function POST(req: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const body = await req.json();
+    const body = await request.json();
     const { name, email, phone, date, time, plotId } = body;
 
     if (!name || !email || !phone || !date || !time || !plotId) {

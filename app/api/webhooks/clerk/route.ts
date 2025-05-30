@@ -13,7 +13,7 @@ export async function POST(req: Request) {
     const user = body.data;
 
     if (eventType === 'user.created') {
-      const { id: clerkId, email_addresses, first_name, last_name, phone_numbers } = user;
+      const { id: clerkId, email_addresses, first_name, last_name, phone_numbers, role } = user;
 
       const email = email_addresses?.[0]?.email_address || '';
       const phone = phone_numbers?.[0]?.phone_number || null;
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
           email,
           name,
           phone,
-          role: 'USER', // Default role, you can customize this
+          role
         },
       });
 
