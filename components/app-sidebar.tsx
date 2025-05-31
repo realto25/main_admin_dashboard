@@ -42,7 +42,6 @@ const navMainItems = [
       { title: "All Clients", url: "/clients" },
       { title: "Sell Requests", url: "/sell-requests" },
       { title: "Camera Access", url: "/cameras" },
-    
     ],
   },
   {

@@ -48,7 +48,7 @@ const PlotList = ({ projectId }: PlotListProps) => {
   // Placeholder for current user (replace with your auth/context logic)
   const currentUser = {
     id: "client-id-123", // Replace with actual client id
-    role: "CLIENT", // or 'ADMIN'
+    role: "CLIENT", // or 'MANAGER'
   };
 
   const fetchPlots = async () => {

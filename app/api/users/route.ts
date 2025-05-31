@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
         email,
         name,
         phone: phone || null,
-        role: role || "guest",
+        role: role || "GUEST",
       },
     });
 

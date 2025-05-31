@@ -49,7 +49,7 @@ model User {
   name             String
   email            String         @unique
   phone            String?
-  role             UserRole       @default(USER)
+  role             UserRole       @default(GUEST)
   visitRequests    VisitRequest[]
   feedback         Feedback[]
   ownedPlots       Plot[]         @relation("PlotOwner")
@@ -134,9 +134,9 @@ model SellRequest {
 }
 
 enum UserRole {
-  ADMIN
-  USER
+  GUEST
   CLIENT
+  MANAGER
 }
 
 enum PlotStatus {

@@ -9,7 +9,7 @@ interface Client {
   email: string;
   phone: string | null;
   createdAt: Date;
-  role: "ADMIN" | "USER" | "CLIENT";
+  role: "GUEST" | "CLIENT" | "MANAGER";
 }
 
 interface ClientDetailsProps {
