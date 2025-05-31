@@ -106,8 +106,8 @@ model Feedback {
   suggestions      String
   purchaseInterest Boolean?
   booking          VisitRequest @relation(fields: [bookingId], references: [id])
-  user             User         @relation(fields: [userId], references: [id])
-  userId           String
+  user             User?        @relation(fields: [userId], references: [id])
+  userId           String? // Made optional
   createdAt        DateTime     @default(now())
 }
 
