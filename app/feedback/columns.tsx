@@ -4,7 +4,7 @@ import { ColumnDef } from "@tanstack/react-table";
 
 export type FeedbackColumn = {
   id: string;
-  bookingId: string;
+  visitRequestId: string;
   rating: number;
   experience: string;
   suggestions: string;
