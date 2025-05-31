@@ -7,10 +7,16 @@ export async function POST(req: NextRequest) {
     const session = await auth();
     const clerkId = session?.userId;
     const body = await req.json();
-    const { bookingId, rating, experience, suggestions, purchaseInterest } = body;
+    const { bookingId, rating, experience, suggestions, purchaseInterest } =
+      body;
 
     // 🔍 Validate required fields
-    if (!bookingId || rating == null || experience == null || suggestions == null) {
+    if (
+      !bookingId ||
+      rating == null ||
+      experience == null ||
+      suggestions == null
+    ) {
       return NextResponse.json(
         { error: "Missing required feedback fields." },
         { status: 400 }
@@ -41,14 +47,14 @@ export async function POST(req: NextRequest) {
         where: { clerkId },
         select: { id: true },
       });
-      
+
       if (!dbUser) {
         return NextResponse.json(
           { error: "User not found in database." },
           { status: 400 }
         );
       }
-      
+
       feedbackUserId = dbUser.id;
     } else if (existingBooking.userId) {
       // If no auth but booking has a user, use that user ID
@@ -57,7 +63,7 @@ export async function POST(req: NextRequest) {
       // If no authenticated user and booking has no user, we need to handle this case
       // Since userId is NOT NULL, we need to either:
       // 1. Require authentication for feedback, OR
-      // 2. Create a guest user entry, OR  
+      // 2. Create a guest user entry, OR
       // 3. Use the booking's user if it exists
       return NextResponse.json(
         { error: "Authentication required to submit feedback." },
@@ -83,7 +89,8 @@ export async function POST(req: NextRequest) {
       rating: parseInt(rating.toString()), // Ensure it's an integer
       experience: experience.toString(),
       suggestions: suggestions.toString(),
-      purchaseInterest: purchaseInterest === null ? null : Boolean(purchaseInterest),
+      purchaseInterest:
+        purchaseInterest === null ? null : Boolean(purchaseInterest),
       userId: feedbackUserId, // Now guaranteed to be a valid string
     };
 
@@ -112,21 +119,25 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json(
-      { 
+      {
         message: "Feedback submitted successfully",
-        feedback 
-      }, 
+        feedback,
+      },
       { status: 201 }
     );
-    
   } catch (err) {
     console.error("Feedback creation error:", err);
-    console.error("Error details:", {
-      name: err.name,
-      message: err.message,
-      code: err.code,
-    });
-    
+
+    // Type guard for error details
+    if (err && typeof err === "object") {
+      const errorDetails = {
+        name: "name" in err ? String(err.name) : "Unknown",
+        message: "message" in err ? String(err.message) : "Unknown error",
+        code: "code" in err ? String(err.code) : "Unknown code",
+      };
+      console.error("Error details:", errorDetails);
+    }
+
     return NextResponse.json(
       { error: "Failed to create feedback. Please try again." },
       { status: 500 }
