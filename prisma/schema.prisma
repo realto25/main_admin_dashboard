@@ -99,9 +99,9 @@ model VisitRequest {
 }
 
 model Feedback {
-  id               String       @id @default(cuid())
-  visitRequestId   String       // ✅ FIXED: Renamed from bookingId to be more explicit
-  rating           Int          @db.SmallInt // ✅ Added constraint for 1-5 rating
+  id               String       @id @default(cuid()) // Let Prisma generate this
+  visitRequestId   String       
+  rating           Int          @db.SmallInt // 1-5 rating
   experience       String       @db.Text
   suggestions      String       @db.Text
   purchaseInterest Boolean?
@@ -110,8 +110,7 @@ model Feedback {
   userId           String
   createdAt        DateTime     @default(now())
 
-  // ✅ FIXED: Added compound unique constraint to prevent duplicate feedback per visit
-  @@unique([visitRequestId, userId])
+  @@unique([visitRequestId, userId]) // Prevent duplicate feedback
 }
 
 model Message {

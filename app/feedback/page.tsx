@@ -1,13 +1,17 @@
-import { DataTable } from "@/components/ui/data-table";
 import { prisma } from "@/lib/prisma";
 import { columns } from "./columns";
+import { DataTable } from "@/components/ui/data-table";
 
 export default async function FeedbackPage() {
   const feedbacks = await prisma.feedback.findMany({
     include: {
       visitRequest: {
         include: {
-          plot: true,
+          plot: {
+            include: {
+              project: true, // Include project for additional context if needed
+            },
+          },
         },
       },
       user: true,
@@ -19,12 +23,12 @@ export default async function FeedbackPage() {
 
   const formatted = feedbacks.map((fb) => ({
     id: fb.id,
-    bookingId: fb.bookingId,
+    visitRequestId: fb.visitRequestId, // Fixed: Changed from bookingId to visitRequestId
     rating: fb.rating,
     experience: fb.experience,
     suggestions: fb.suggestions,
-    purchaseInterest: fb.purchaseInterest ? "Yes" : "No",
-    plot: fb.booking.plot.title,
+    purchaseInterest: fb.purchaseInterest === null ? "Not specified" : fb.purchaseInterest ? "Yes" : "No",
+    plot: fb.visitRequest.plot.title, // Fixed: Changed from fb.booking to fb.visitRequest
     date: fb.createdAt.toLocaleDateString(),
   }));
 

@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
         { status: 401 }
       );
     }
+    
     if (!visitRequestId || !rating || !experience || !suggestions) {
       return NextResponse.json(
         { error: "Missing required fields" },
@@ -49,14 +50,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check if visit request exists
-    const visitRequest = await prisma.visitRequest.findUnique({
-      where: { id: visitRequestId },
+    // Check if visit request exists and belongs to user
+    const visitRequest = await prisma.visitRequest.findFirst({
+      where: {
+        id: visitRequestId,
+        OR: [
+          { userId: user.id },
+          { email: user.email } // For guest bookings
+        ]
+      },
     });
 
     if (!visitRequest) {
       return NextResponse.json(
-        { error: "Visit request not found" },
+        { error: "Visit request not found or unauthorized" },
         { status: 404 }
       );
     }
@@ -78,23 +85,82 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create feedback
+    // Create feedback - Let Prisma auto-generate the ID
     const feedback = await prisma.feedback.create({
       data: {
-        id: require('crypto').randomUUID(), // Generate UUID for id
         visitRequestId,
-        rating,
-        experience,
-        suggestions,
-        purchaseInterest,
+        rating: parseInt(rating.toString()), // Ensure it's an integer
+        experience: experience.trim(),
+        suggestions: suggestions.trim(),
+        purchaseInterest: purchaseInterest === null ? null : Boolean(purchaseInterest),
         userId: user.id,
-        createdAt: new Date(),
+      },
+      include: {
+        visitRequest: {
+          select: {
+            id: true,
+            date: true,
+            time: true,
+            plot: {
+              select: {
+                id: true,
+                title: true,
+                project: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
       },
     });
 
-    return NextResponse.json(feedback, { status: 201 });
+    return NextResponse.json(
+      {
+        message: "Feedback submitted successfully",
+        data: feedback,
+      },
+      { status: 201 }
+    );
   } catch (error) {
     console.error("Feedback submission error:", error);
+
+    // Handle Prisma-specific errors
+    if (error && typeof error === "object" && "code" in error) {
+      const prismaError = error as { code: string; meta?: any };
+      
+      if (prismaError.code === "P2002") {
+        return NextResponse.json(
+          { error: "Feedback already exists for this visit" },
+          { status: 409 }
+        );
+      }
+
+      if (prismaError.code === "P2025") {
+        return NextResponse.json(
+          { error: "Referenced record not found" },
+          { status: 404 }
+        );
+      }
+
+      if (prismaError.code === "P2003") {
+        return NextResponse.json(
+          { error: "Invalid visit request or user reference" },
+          { status: 400 }
+        );
+      }
+    }
+
     return NextResponse.json(
       { error: "Failed to submit feedback" },
       { status: 500 }
@@ -136,10 +202,12 @@ export async function GET(req: NextRequest) {
             id: true,
             date: true,
             time: true,
+            status: true,
             plot: {
               select: {
                 id: true,
                 title: true,
+                location: true,
                 project: {
                   select: {
                     id: true,
