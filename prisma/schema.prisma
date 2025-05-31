@@ -32,9 +32,9 @@ model Plot {
   amenities     String[]
   mapEmbedUrl   String?        @db.Text
   description   String         @db.Text
-  project       Project        @relation(fields: [projectId], references: [id])
+  project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   projectId     String
-  owner         User?          @relation("PlotOwner", fields: [ownerId], references: [id])
+  owner         User?          @relation("PlotOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   ownerId       String?
   visitRequests VisitRequest[]
   camera        Camera?
@@ -63,16 +63,16 @@ model User {
 
 model ClientPlot {
   id        String   @id @default(cuid())
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String
-  plot      Plot     @relation(fields: [plotId], references: [id])
+  plot      Plot     @relation(fields: [plotId], references: [id], onDelete: Cascade)
   plotId    String   @unique
   createdAt DateTime @default(now())
 }
 
 model Camera {
   id        String   @id @default(cuid())
-  plot      Plot     @relation(fields: [plotId], references: [id])
+  plot      Plot     @relation(fields: [plotId], references: [id], onDelete: Cascade)
   plotId    String   @unique
   ipAddress String
   label     String?
@@ -89,34 +89,37 @@ model VisitRequest {
   status    VisitStatus @default(PENDING)
   qrCode    String?
   expiresAt DateTime?
-  plot      Plot        @relation(fields: [plotId], references: [id])
+  plot      Plot        @relation(fields: [plotId], references: [id], onDelete: Cascade)
   plotId    String
-  user      User?       @relation(fields: [userId], references: [id])
+  user      User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
   userId    String?
-  feedback  Feedback?
+  feedback  Feedback[]  // ✅ FIXED: Changed from Feedback? to Feedback[] (one-to-many)
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 }
 
 model Feedback {
   id               String       @id @default(cuid())
-  bookingId        String       @unique
-  rating           Int
-  experience       String
-  suggestions      String
+  visitRequestId   String       // ✅ FIXED: Renamed from bookingId to be more explicit
+  rating           Int          @db.SmallInt // ✅ Added constraint for 1-5 rating
+  experience       String       @db.Text
+  suggestions      String       @db.Text
   purchaseInterest Boolean?
-  booking          VisitRequest @relation(fields: [bookingId], references: [id])
-  user             User         @relation(fields: [userId], references: [id])
+  visitRequest     VisitRequest @relation(fields: [visitRequestId], references: [id], onDelete: Cascade)
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId           String
   createdAt        DateTime     @default(now())
+
+  // ✅ FIXED: Added compound unique constraint to prevent duplicate feedback per visit
+  @@unique([visitRequestId, userId])
 }
 
 model Message {
   id         String   @id @default(cuid())
-  content    String
-  sender     User     @relation("SentMessages", fields: [senderId], references: [id])
+  content    String   @db.Text
+  sender     User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
   senderId   String
-  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
   receiverId String
   isRead     Boolean  @default(false)
   createdAt  DateTime @default(now())
@@ -124,11 +127,11 @@ model Message {
 
 model SellRequest {
   id        String   @id @default(cuid())
-  plot      Plot     @relation(fields: [plotId], references: [id])
+  plot      Plot     @relation(fields: [plotId], references: [id], onDelete: Cascade)
   plotId    String
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String
-  reason    String
+  reason    String   @db.Text
   status    String   @default("pending")
   createdAt DateTime @default(now())
 }
