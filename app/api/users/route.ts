@@ -1,21 +1,28 @@
-import { NextApiRequest, NextApiResponse } from "next";
-import { prisma } from "@/lib/prisma"; // update the path based on your project
+// app/api/users/route.ts
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "POST") return res.status(405).end("Method Not Allowed");
+import { prisma } from "@/lib/prisma"; // Adjust path if needed
+import { NextResponse } from "next/server";
 
+// GET all users
+export async function GET() {
   try {
-    const { clerkId, email, name, phone, role } = req.body;
-
-    const user = await prisma.user.upsert({
-      where: { clerkId },
-      update: { email, name, phone, role },
-      create: { clerkId, email, name, phone, role },
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+      },
     });
 
-    res.status(200).json(user);
+    return NextResponse.json(users);
   } catch (error) {
-    console.error("User upsert failed:", error);
-    res.status(500).json({ error: "User creation failed" });
+    console.error("Error fetching users:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json(
+      { error: "Failed to fetch users", details: errorMessage },
+      { status: 500 }
+    );
   }
 }
