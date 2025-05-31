@@ -5,7 +5,8 @@ import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { Webhook } from "svix";
 
-const webhookSecret = process.env.CLERK_WEBHOOK_SECRET;
+// Assert webhookSecret as string since we check for its existence
+const webhookSecret = process.env.CLERK_WEBHOOK_SECRET as string;
 
 if (!webhookSecret) {
   throw new Error(
