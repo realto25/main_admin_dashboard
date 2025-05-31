@@ -1,43 +1,44 @@
-// app/api/webhooks/clerk/route.ts
-
-import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+// pages/api/webhooks/clerk.ts
+import { Webhook } from "svix";
+import { headers } from "next/headers";
+import { WebhookEvent } from "@clerk/nextjs/server";
+import { createOrUpdateUser } from "@/lib/api";
 
 export async function POST(req: Request) {
+  const payload = await req.json();
+  const headersList = headers();
+  
+  const wh = new Webhook(process.env.CLERK_WEBHOOK_SECRET!);
+  let evt: WebhookEvent;
+
   try {
-    const body = await req.json();
+    evt = wh.verify(
+      JSON.stringify(payload),
+      headersList.get("svix-signature")!,
+      headersList.get("svix-timestamp")!,
+      headersList.get("svix-id")!
+    ) as WebhookEvent;
+  } catch (err) {
+    return new Response("Invalid signature", { status: 400 });
+  }
 
-    const eventType = body.type;
-    const user = body.data;
+  const { id, email_addresses, first_name, last_name, phone_numbers, primary_email_address_id, public_metadata } = evt.data;
+  
+  const primaryEmail = email_addresses?.find(
+    email => email.id === primary_email_address_id
+  )?.email_address;
 
-    if (eventType === 'user.created') {
-      const { id: clerkId, email_addresses, first_name, last_name, phone_numbers, role } = user;
-
-      const email = email_addresses?.[0]?.email_address || '';
-      const phone = phone_numbers?.[0]?.phone_number || null;
-      const name = `${first_name ?? ''} ${last_name ?? ''}`.trim();
-
-      // 🔄 Upsert user to ensure no duplicates
-      const createdUser = await prisma.user.upsert({
-        where: { clerkId },
-        update: {},
-        create: {
-          clerkId,
-          email,
-          name,
-          phone,
-          role
-        },
-      });
-
-      console.log('✅ User created from Clerk:', createdUser.email);
-    }
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('❌ Clerk webhook error:', error);
-    return NextResponse.json({ error: 'Webhook processing failed' }, { status: 500 });
+  try {
+    await createOrUpdateUser({
+      clerkId: id!,
+      email: primaryEmail || "",
+      name: `${first_name} ${last_name}`.trim() || "User",
+      phone: phone_numbers?.[0]?.phone_number,
+      role: (public_metadata?.role as "guest" | "client" | "manager") || "guest"
+    });
+    return new Response("User updated", { status: 200 });
+  } catch (err) {
+    console.error("Webhook error:", err);
+    return new Response("Database error", { status: 500 });
   }
 }
