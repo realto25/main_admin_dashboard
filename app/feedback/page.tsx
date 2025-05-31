@@ -1,15 +1,16 @@
+import { DataTable } from "@/components/ui/data-table";
 import { prisma } from "@/lib/prisma";
 import { columns } from "./columns";
-import { DataTable } from "@/components/ui/data-table";
 
 export default async function FeedbackPage() {
   const feedbacks = await prisma.feedback.findMany({
     include: {
-      booking: {
+      visitRequest: {
         include: {
           plot: true,
         },
       },
+      user: true,
     },
     orderBy: {
       createdAt: "desc",
