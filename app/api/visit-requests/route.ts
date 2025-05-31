@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     const plotExists = await prisma.plot.findUnique({
       where: { id: plotId },
     });
-    
+
     if (!plotExists) {
       return NextResponse.json({ error: "Plot not found" }, { status: 404 });
     }
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
         name,
         email,
         phone,
-        date: new Date(date),  // Ensure date is converted to Date object
+        date: new Date(date), // Ensure date is converted to Date object
         time,
         plotId,
         userId,
@@ -59,8 +59,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(visit);
   } catch (error) {
     console.error("Error creating visit request:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error occurred";
     return NextResponse.json(
-      { error: "Failed to create visit request", details: error.message },
+      { error: "Failed to create visit request", details: errorMessage },
       { status: 500 }
     );
   }
