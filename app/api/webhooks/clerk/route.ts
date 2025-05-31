@@ -4,6 +4,24 @@ import { Webhook } from 'svix';
 import { WebhookEvent } from '@clerk/nextjs/server';
 import { createOrUpdateUser } from '@/lib/api';
 
+// Type for Clerk user data in webhook events
+type ClerkUserData = {
+  id: string;
+  email_addresses: {
+    id: string;
+    email_address: string;
+  }[];
+  first_name: string | null;
+  last_name: string | null;
+  phone_numbers: {
+    phone_number: string;
+  }[];
+  primary_email_address_id: string | null;
+  public_metadata: {
+    role?: 'guest' | 'client' | 'manager';
+  };
+};
+
 export async function POST(req: Request) {
   try {
     const payload = await req.json();
@@ -33,19 +51,35 @@ export async function POST(req: Request) {
       return new Response('Invalid signature', { status: 400 });
     }
 
-    const { id, email_addresses, first_name, last_name, phone_numbers, primary_email_address_id, public_metadata } = evt.data;
+    // Only process user events
+    if (!evt.type.startsWith('user.')) {
+      return NextResponse.json({ message: 'Ignoring non-user event' });
+    }
+
+    // Type-safe extraction of user data
+    const userData = evt.data as ClerkUserData;
     
-    const primaryEmail = email_addresses?.find(
-      email => email.id === primary_email_address_id
-    )?.email_address;
+    const primaryEmail = userData.primary_email_address_id 
+      ? userData.email_addresses.find(
+          email => email.id === userData.primary_email_address_id
+        )?.email_address
+      : userData.email_addresses[0]?.email_address || '';
+
+    const name = [userData.first_name, userData.last_name]
+      .filter(Boolean)
+      .join(' ')
+      .trim() || 'User';
+
+    const phone = userData.phone_numbers[0]?.phone_number || '';
+    const role = userData.public_metadata.role || 'guest';
 
     try {
       await createOrUpdateUser({
-        clerkId: id!,
-        email: primaryEmail || '',
-        name: `${first_name || ''} ${last_name || ''}`.trim() || 'User',
-        phone: phone_numbers?.[0]?.phone_number,
-        role: (public_metadata?.role as 'guest' | 'client' | 'manager') || 'guest'
+        clerkId: userData.id,
+        email: primaryEmail,
+        name,
+        phone,
+        role
       });
       return NextResponse.json({ success: true });
     } catch (err) {
