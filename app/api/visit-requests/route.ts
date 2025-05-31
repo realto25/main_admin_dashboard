@@ -1,23 +1,47 @@
-// app/api/visit-requests/route.ts
 import { prisma } from "@/lib/prisma";
-import { auth } from "@clerk/nextjs/server";
-import { PlotStatus, VisitStatus } from "@prisma/client";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-export async function POST(req: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const session = await auth();
-    const userId = session?.userId;
-    const body = await req.json();
-    const { name, email, phone, date, time, plotId } = body;
+    const data = await prisma.visitRequest.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+          },
+        },
+        plot: {
+          select: {
+            id: true,
+            title: true,
+            location: true,
+          },
+        },
+      },
+    });
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error("Error fetching visit requests:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch visit requests" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { name, email, phone, date, time, plotId, clerkId } = body;
 
     // Validate required fields
     if (!name || !email || !phone || !date || !time || !plotId) {
       return NextResponse.json(
-        {
-          error:
-            "Missing required fields: name, email, phone, date, time, and plotId are required",
-        },
+        { error: "All fields are required" },
         { status: 400 }
       );
     }
@@ -31,92 +55,64 @@ export async function POST(req: Request) {
       );
     }
 
-    // Validate phone number
-    const phoneRegex = /^\+?[\d\s-]{10,}$/;
-    if (!phoneRegex.test(phone)) {
-      return NextResponse.json(
-        { error: "Invalid phone number format" },
-        { status: 400 }
-      );
-    }
-
-    // Parse and validate date
-    const visitDate = new Date(date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    visitDate.setHours(0, 0, 0, 0);
-
-    if (isNaN(visitDate.getTime())) {
-      return NextResponse.json(
-        { error: "Invalid date format" },
-        { status: 400 }
-      );
-    }
-
-    if (visitDate < today) {
-      return NextResponse.json(
-        { error: "Visit date cannot be in the past" },
-        { status: 400 }
-      );
-    }
-
-    // Check if plot exists and is available
-    const plot = await prisma.plot.findUnique({
+    // Verify plot exists
+    const plotExists = await prisma.plot.findUnique({
       where: { id: plotId },
-      select: {
-        id: true,
-        status: true,
-        title: true,
-        location: true,
-      },
     });
 
-    if (!plot) {
-      return NextResponse.json(
-        { error: "Invalid plot ID. Plot not found" },
-        { status: 400 }
-      );
+    if (!plotExists) {
+      return NextResponse.json({ error: "Plot not found" }, { status: 404 });
     }
 
-    if (plot.status !== PlotStatus.AVAILABLE) {
-      return NextResponse.json(
-        { error: "This plot is no longer available for visits" },
-        { status: 400 }
-      );
-    }
+    let userId: string | undefined;
 
-    // Check for existing visit requests for the same plot and time slot
-    const existingRequest = await prisma.visitRequest.findFirst({
-      where: {
-        plotId,
-        date: visitDate,
-        time,
-        status: {
-          in: [VisitStatus.PENDING, VisitStatus.APPROVED],
-        },
-      },
-    });
+    // If clerkId is provided, find or create user
+    if (clerkId) {
+      let user = await prisma.user.findUnique({
+        where: { clerkId },
+      });
 
-    if (existingRequest) {
-      return NextResponse.json(
-        { error: "This time slot is already booked" },
-        { status: 409 }
-      );
-    }
-
-    // If user is authenticated, check for their existing requests
-    if (userId) {
-      const userExistingRequest = await prisma.visitRequest.findFirst({
-        where: {
-          userId,
-          plotId,
-          status: {
-            in: [VisitStatus.PENDING, VisitStatus.APPROVED],
+      if (!user) {
+        // Create user if doesn't exist
+        user = await prisma.user.create({
+          data: {
+            clerkId,
+            name,
+            email,
+            phone,
+            role: "GUEST",
           },
+        });
+      } else {
+        // Update user info if it has changed
+        if (
+          user.name !== name ||
+          user.email !== email ||
+          user.phone !== phone
+        ) {
+          user = await prisma.user.update({
+            where: { clerkId },
+            data: {
+              name,
+              email,
+              phone: phone || user.phone,
+            },
+          });
+        }
+      }
+
+      userId = user.id;
+
+      // Check if user already has a pending visit request for this plot
+      const existingRequest = await prisma.visitRequest.findFirst({
+        where: {
+          userId: user.id,
+          plotId,
+          status: "PENDING",
         },
       });
 
-      if (userExistingRequest) {
+      if (existingRequest) {
         return NextResponse.json(
           { error: "You already have a pending visit request for this plot" },
           { status: 409 }
@@ -130,24 +126,13 @@ export async function POST(req: Request) {
         name,
         email,
         phone,
-        date: visitDate, // Store as DateTime
+        date: new Date(date),
         time,
         plotId,
-        userId: userId || null,
-        status: VisitStatus.PENDING,
-        // Generate QR code if needed
-        qrCode: null, // You can implement QR code generation if needed
-        expiresAt: null, // You can set expiration if needed
+        userId, // This will be undefined for guest users, null for logged-in users
+        status: "PENDING",
       },
       include: {
-        plot: {
-          select: {
-            id: true,
-            title: true,
-            location: true,
-            status: true,
-          },
-        },
         user: userId
           ? {
               select: {
@@ -158,29 +143,43 @@ export async function POST(req: Request) {
               },
             }
           : undefined,
+        plot: {
+          select: {
+            id: true,
+            title: true,
+            location: true,
+          },
+        },
       },
     });
 
-    return NextResponse.json(visitRequest, { status: 201 });
+    return NextResponse.json({
+      message: "Visit request submitted successfully",
+      data: visitRequest,
+    });
   } catch (error) {
-    console.error("Visit request creation error:", error);
+    console.error("Error creating visit request:", error);
 
     // Type guard for Prisma errors
     if (error && typeof error === "object" && "code" in error) {
-      if (error.code === "P2002") {
+      const prismaError = error as { code: string };
+      if (prismaError.code === "P2002") {
         return NextResponse.json(
-          { error: "A visit request with these details already exists" },
+          { error: "A visit request with this information already exists" },
           { status: 409 }
         );
       }
 
-      if (error.code === "P2003") {
-        return NextResponse.json({ error: "Invalid plot ID" }, { status: 400 });
+      if (prismaError.code === "P2025") {
+        return NextResponse.json(
+          { error: "Referenced record not found" },
+          { status: 404 }
+        );
       }
     }
 
     return NextResponse.json(
-      { error: "Failed to create visit request. Please try again later" },
+      { error: "Failed to create visit request" },
       { status: 500 }
     );
   }
