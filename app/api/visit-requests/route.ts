@@ -1,8 +1,8 @@
 // app/api/visit-requests/route.ts
 import { prisma } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
+import { PlotStatus, VisitStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
-import { VisitStatus, PlotStatus } from "@prisma/client";
 
 export async function POST(req: Request) {
   try {
@@ -14,7 +14,10 @@ export async function POST(req: Request) {
     // Validate required fields
     if (!name || !email || !phone || !date || !time || !plotId) {
       return NextResponse.json(
-        { error: "Missing required fields: name, email, phone, date, time, and plotId are required" },
+        {
+          error:
+            "Missing required fields: name, email, phone, date, time, and plotId are required",
+        },
         { status: 400 }
       );
     }
@@ -42,7 +45,7 @@ export async function POST(req: Request) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     visitDate.setHours(0, 0, 0, 0);
-    
+
     if (isNaN(visitDate.getTime())) {
       return NextResponse.json(
         { error: "Invalid date format" },
@@ -60,12 +63,12 @@ export async function POST(req: Request) {
     // Check if plot exists and is available
     const plot = await prisma.plot.findUnique({
       where: { id: plotId },
-      select: { 
-        id: true, 
+      select: {
+        id: true,
         status: true,
         title: true,
-        location: true
-      }
+        location: true,
+      },
     });
 
     if (!plot) {
@@ -89,9 +92,9 @@ export async function POST(req: Request) {
         date: visitDate,
         time,
         status: {
-          in: [VisitStatus.PENDING, VisitStatus.APPROVED]
-        }
-      }
+          in: [VisitStatus.PENDING, VisitStatus.APPROVED],
+        },
+      },
     });
 
     if (existingRequest) {
@@ -108,9 +111,9 @@ export async function POST(req: Request) {
           userId,
           plotId,
           status: {
-            in: [VisitStatus.PENDING, VisitStatus.APPROVED]
-          }
-        }
+            in: [VisitStatus.PENDING, VisitStatus.APPROVED],
+          },
+        },
       });
 
       if (userExistingRequest) {
@@ -143,36 +146,37 @@ export async function POST(req: Request) {
             title: true,
             location: true,
             status: true,
-          }
+          },
         },
-        user: userId ? {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-          }
-        } : undefined,
-      }
+        user: userId
+          ? {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+              },
+            }
+          : undefined,
+      },
     });
 
     return NextResponse.json(visitRequest, { status: 201 });
   } catch (error) {
     console.error("Visit request creation error:", error);
-    
-    // Handle specific database errors
-    if (error.code === 'P2002') {
-      return NextResponse.json(
-        { error: "A visit request with these details already exists" },
-        { status: 409 }
-      );
-    }
-    
-    if (error.code === 'P2003') {
-      return NextResponse.json(
-        { error: "Invalid plot ID" },
-        { status: 400 }
-      );
+
+    // Type guard for Prisma errors
+    if (error && typeof error === "object" && "code" in error) {
+      if (error.code === "P2002") {
+        return NextResponse.json(
+          { error: "A visit request with these details already exists" },
+          { status: 409 }
+        );
+      }
+
+      if (error.code === "P2003") {
+        return NextResponse.json({ error: "Invalid plot ID" }, { status: 400 });
+      }
     }
 
     return NextResponse.json(
