@@ -4,8 +4,7 @@ import { Webhook } from 'svix';
 import { WebhookEvent } from '@clerk/nextjs/server';
 import { createOrUpdateUser } from '@/lib/api';
 
-// Type for Clerk user data in webhook events
-type ClerkUserData = {
+interface ClerkUserData {
   id: string;
   email_addresses: {
     id: string;
@@ -20,7 +19,7 @@ type ClerkUserData = {
   public_metadata: {
     role?: 'guest' | 'client' | 'manager';
   };
-};
+}
 
 export async function POST(req: Request) {
   try {
@@ -59,18 +58,26 @@ export async function POST(req: Request) {
     // Type-safe extraction of user data
     const userData = evt.data as ClerkUserData;
     
-    const primaryEmail = userData.primary_email_address_id 
-      ? userData.email_addresses.find(
-          email => email.id === userData.primary_email_address_id
-        )?.email_address
-      : userData.email_addresses[0]?.email_address || '';
+    // Safely get primary email
+    let primaryEmail = '';
+    if (userData.primary_email_address_id) {
+      const emailObj = userData.email_addresses.find(
+        email => email.id === userData.primary_email_address_id
+      );
+      primaryEmail = emailObj?.email_address || '';
+    } else if (userData.email_addresses.length > 0) {
+      primaryEmail = userData.email_addresses[0]?.email_address || '';
+    }
 
-    const name = [userData.first_name, userData.last_name]
-      .filter(Boolean)
-      .join(' ')
-      .trim() || 'User';
+    // Construct name safely
+    const firstName = userData.first_name || '';
+    const lastName = userData.last_name || '';
+    const name = `${firstName} ${lastName}`.trim() || 'User';
 
+    // Get phone number safely
     const phone = userData.phone_numbers[0]?.phone_number || '';
+
+    // Get role with default
     const role = userData.public_metadata.role || 'guest';
 
     try {
