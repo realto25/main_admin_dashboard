@@ -1,20 +1,20 @@
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
-import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    const clerkId = session?.userId;
+    const { userId: clerkId } = auth(); // ✅ no await needed
+
     const body = await request.json();
     const { name, email, phone, date, time, plotId } = body;
 
-    // Validate required fields
+    // ✅ Basic field validation
     if (!name || !email || !phone || !date || !time || !plotId) {
-      return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // Validate plot exists
+    // ✅ Validate plot existence
     const plotExists = await prisma.plot.findUnique({
       where: { id: plotId },
     });
@@ -23,8 +23,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Plot not found" }, { status: 404 });
     }
 
-    // If user is authenticated, get their database ID
-    let userId: string | undefined;
+    // ✅ Lookup DB user ID if authenticated
+    let userId: string | undefined = undefined;
     if (clerkId) {
       const user = await prisma.user.findUnique({
         where: { clerkId },
@@ -33,13 +33,19 @@ export async function POST(request: NextRequest) {
       if (user) userId = user.id;
     }
 
-    // Create visit request
+    // ✅ Parse and validate date
+    const parsedDate = new Date(date);
+    if (isNaN(parsedDate.getTime())) {
+      return NextResponse.json({ error: "Invalid date format" }, { status: 400 });
+    }
+
+    // ✅ Create visit request
     const visit = await prisma.visitRequest.create({
       data: {
         name,
         email,
         phone,
-        date: new Date(date), // Ensure date is converted to Date object
+        date: parsedDate,
         time,
         plotId,
         userId,
@@ -56,13 +62,14 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(visit);
+    return NextResponse.json(visit, { status: 201 });
   } catch (error) {
     console.error("Error creating visit request:", error);
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error occurred";
     return NextResponse.json(
-      { error: "Failed to create visit request", details: errorMessage },
+      {
+        error: "Failed to create visit request",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 }
     );
   }
