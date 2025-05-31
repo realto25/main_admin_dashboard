@@ -1,11 +1,11 @@
 // api/users/[clerkId]/profile/route.ts
 import { headers } from "next/headers";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { Webhook } from "svix";
 
 export async function GET(
-  request: Request,
-  { params }: { params: { clerkId: string } }
+  request: NextRequest,
+  context: { params: { clerkId: string } }
 ) {
   try {
     // Verify webhook signature
