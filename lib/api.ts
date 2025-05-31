@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // lib/api.ts
 import { PrismaClient, UserRole } from '@prisma/client';
 
@@ -11,12 +12,17 @@ const toPrismaRole = (role: string): UserRole => {
     default: return UserRole.GUEST;
   }
 };
+=======
+// lib/api.ts (createOrUpdateUser)
+import { prisma } from "@/lib/prisma";
+>>>>>>> b074163e274f520157b48ec73d312af063c6ca5a
 
 export const createOrUpdateUser = async (data: {
   clerkId: string;
   email: string;
   name: string;
   phone?: string;
+<<<<<<< HEAD
   role: string;
 }) => {
   // Convert role to Prisma enum
@@ -45,3 +51,30 @@ export const getUserByClerkId = async (clerkId: string) => {
     where: { clerkId }
   });
 };
+=======
+  role: "guest" | "client" | "manager";
+}) => {
+  try {
+    // Upsert user data
+    return await prisma.user.upsert({
+      where: { clerkId: data.clerkId },
+      update: {
+        email: data.email,
+        name: data.name,
+        phone: data.phone,
+        role: data.role
+      },
+      create: {
+        clerkId: data.clerkId,
+        email: data.email,
+        name: data.name,
+        phone: data.phone,
+        role: data.role
+      }
+    });
+  } catch (error) {
+    console.error("DB operation failed:", error);
+    throw error;
+  }
+};
+>>>>>>> b074163e274f520157b48ec73d312af063c6ca5a
