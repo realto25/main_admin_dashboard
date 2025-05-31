@@ -1,218 +1,386 @@
-import { prisma } from "@/lib/prisma";
-import { auth } from "@clerk/nextjs/server";
-import { NextRequest, NextResponse } from "next/server";
+// pages/api/feedback.ts or app/api/feedback/route.ts (depending on your Next.js version)
 
-export async function POST(req: NextRequest) {
+import { PrismaClient } from "@prisma/client";
+import { NextApiRequest, NextApiResponse } from "next";
+
+const prisma = new PrismaClient();
+
+// For App Router (Next.js 13+)
+export async function POST(request: Request) {
   try {
-    const session = await auth();
-    const clerkId = session?.userId;
-    const body = await req.json();
-    const { bookingId, rating, experience, suggestions, purchaseInterest } = body;
-
-    console.log("Feedback submission data:", { 
-      bookingId, 
-      rating, 
-      experience: experience?.substring(0, 50) + "...", 
-      suggestions: suggestions?.substring(0, 50) + "...", 
+    // Parse request body
+    const body = await request.json();
+    const {
+      bookingId,
+      rating,
+      experience,
+      suggestions,
       purchaseInterest,
-      clerkId 
-    });
+      clerkId,
+    } = body;
 
-    // 🔍 Validate required fields
-    if (!bookingId || rating == null || !experience || !suggestions) {
-      console.error("Missing required fields:", { bookingId, rating, experience: !!experience, suggestions: !!suggestions });
-      return NextResponse.json(
-        { error: "Missing required feedback fields." },
+    // Validate required fields
+    if (!clerkId?.trim()) {
+      return Response.json({ error: "User ID is required" }, { status: 400 });
+    }
+
+    if (!bookingId?.trim()) {
+      return Response.json(
+        { error: "Booking ID is required" },
         { status: 400 }
       );
     }
 
-    // Validate rating is a number between 1-5
-    const ratingNum = Number(rating);
-    if (isNaN(ratingNum) || ratingNum < 1 || ratingNum > 5) {
-      return NextResponse.json(
-        { error: "Rating must be a number between 1 and 5." },
+    if (!rating || rating < 1 || rating > 5) {
+      return Response.json(
+        { error: "Rating must be between 1 and 5" },
         { status: 400 }
       );
     }
 
-    // 🔐 Validate visit request exists
-    const existingVisitRequest = await prisma.visitRequest.findUnique({
-      where: { id: bookingId },
-      include: {
-        user: true,
-        plot: {
-          include: {
-            project: true
-          }
-        }
-      },
+    if (!experience?.trim()) {
+      return Response.json(
+        { error: "Experience feedback is required" },
+        { status: 400 }
+      );
+    }
+
+    if (!suggestions?.trim()) {
+      return Response.json(
+        { error: "Suggestions are required" },
+        { status: 400 }
+      );
+    }
+
+    if (purchaseInterest === undefined) {
+      return Response.json(
+        { error: "Purchase interest is required" },
+        { status: 400 }
+      );
+    }
+
+    // Find the user by Clerk ID
+    const user = await prisma.user.findUnique({
+      where: { clerkId: clerkId.trim() },
     });
 
-    if (!existingVisitRequest) {
-      console.error("Visit request not found:", bookingId);
-      return NextResponse.json(
-        { error: "Invalid booking ID. Visit request not found." },
+    if (!user) {
+      return Response.json(
+        { error: "User not found - Please sign up first" },
         { status: 404 }
       );
     }
 
-    console.log("Found visit request:", {
-      id: existingVisitRequest.id,
-      userId: existingVisitRequest.userId,
-      status: existingVisitRequest.status
+    // Verify the visit request exists and belongs to the user
+    const visitRequest = await prisma.visitRequest.findFirst({
+      where: {
+        id: bookingId,
+        userId: user.id,
+      },
+      include: {
+        plot: {
+          include: {
+            project: true,
+          },
+        },
+      },
     });
 
-    // Determine user ID for feedback
-    let feedbackUserId: string;
-
-    if (clerkId) {
-      // For authenticated users, get their DB user ID
-      const dbUser = await prisma.user.findUnique({
-        where: { clerkId },
-        select: { id: true },
-      });
-
-      if (!dbUser) {
-        console.error("Authenticated user not found in database:", clerkId);
-        return NextResponse.json(
-          { error: "User not found in database." },
-          { status: 400 }
-        );
-      }
-
-      feedbackUserId = dbUser.id;
-      console.log("Using authenticated user ID:", feedbackUserId);
-    } else if (existingVisitRequest.userId) {
-      // If no auth but visit request has a user, use that user ID
-      feedbackUserId = existingVisitRequest.userId;
-      console.log("Using visit request user ID:", feedbackUserId);
-    } else {
-      console.error("No user context for feedback submission");
-      return NextResponse.json(
-        { error: "Authentication required to submit feedback." },
-        { status: 401 }
+    if (!visitRequest) {
+      return Response.json(
+        { error: "Visit request not found or does not belong to this user" },
+        { status: 404 }
       );
     }
 
     // Check if feedback already exists for this visit request and user
-    const existingFeedback = await prisma.feedback.findFirst({
-      where: { 
-        visitRequestId: bookingId,
-        userId: feedbackUserId 
+    const existingFeedback = await prisma.feedback.findUnique({
+      where: {
+        visitRequestId_userId: {
+          visitRequestId: bookingId,
+          userId: user.id,
+        },
       },
     });
 
     if (existingFeedback) {
-      console.error("Feedback already exists for visit request:", bookingId);
-      return NextResponse.json(
-        { error: "Feedback has already been submitted for this booking." },
+      return Response.json(
+        { error: "Feedback already submitted for this visit" },
         { status: 409 }
       );
     }
 
-    // Create feedback data object
-    const feedbackData = {
-      visitRequestId: bookingId, // Updated field name
-      rating: ratingNum,
-      experience: experience.toString().trim(),
-      suggestions: suggestions.toString().trim(),
-      purchaseInterest: purchaseInterest === null ? null : Boolean(purchaseInterest),
-      userId: feedbackUserId,
-    };
-
-    console.log("Creating feedback with data:", {
-      ...feedbackData,
-      experience: feedbackData.experience.substring(0, 50) + "...",
-      suggestions: feedbackData.suggestions.substring(0, 50) + "..."
-    });
-
-    // ✅ Create feedback
+    // Create the feedback
     const feedback = await prisma.feedback.create({
-      data: feedbackData,
+      data: {
+        visitRequestId: bookingId,
+        userId: user.id,
+        rating: parseInt(rating),
+        experience: experience.trim(),
+        suggestions: suggestions.trim(),
+        purchaseInterest:
+          purchaseInterest === true
+            ? true
+            : purchaseInterest === false
+            ? false
+            : null,
+      },
       include: {
         user: {
           select: {
             id: true,
             name: true,
             email: true,
-            role: true,
           },
         },
         visitRequest: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            date: true,
-            time: true,
-            status: true,
+          include: {
             plot: {
-              select: {
-                id: true,
-                title: true,
-                project: {
-                  select: {
-                    name: true
-                  }
-                }
-              }
-            }
+              include: {
+                project: true,
+              },
+            },
           },
         },
       },
     });
 
-    console.log("Feedback created successfully:", feedback.id);
-
-    return NextResponse.json(
+    return Response.json(
       {
+        success: true,
         message: "Feedback submitted successfully",
-        feedback,
+        feedback: {
+          id: feedback.id,
+          rating: feedback.rating,
+          experience: feedback.experience,
+          suggestions: feedback.suggestions,
+          purchaseInterest: feedback.purchaseInterest,
+          createdAt: feedback.createdAt,
+          visitRequest: {
+            id: feedback.visitRequest.id,
+            date: feedback.visitRequest.date,
+            plot: {
+              id: feedback.visitRequest.plot.id,
+              title: feedback.visitRequest.plot.title,
+              location: feedback.visitRequest.plot.location,
+              project: {
+                id: feedback.visitRequest.plot.project.id,
+                name: feedback.visitRequest.plot.project.name,
+              },
+            },
+          },
+          user: {
+            id: feedback.user.id,
+            name: feedback.user.name,
+            email: feedback.user.email,
+          },
+        },
       },
       { status: 201 }
     );
+  } catch (error) {
+    console.error("Feedback submission error:", error);
 
-  } catch (err) {
-    console.error("=== FEEDBACK CREATION ERROR ===");
-    console.error("Raw error:", err);
-    console.error("Error type:", typeof err);
+    // Type guard for Prisma errors
+    if (error && typeof error === "object" && "code" in error) {
+      const prismaError = error as { code: string };
+      if (prismaError.code === "P2002") {
+        return Response.json(
+          { error: "Feedback already exists for this visit" },
+          { status: 409 }
+        );
+      }
 
-    if (err && typeof err === "object") {
-      const errorDetails = {
-        name: "name" in err ? String(err.name) : "Unknown",
-        message: "message" in err ? String(err.message) : "Unknown error",
-        code: "code" in err ? String(err.code) : "Unknown code",
-      };
-      console.error("Structured error details:", errorDetails);
-
-      // Handle specific Prisma errors
-      if ("code" in err) {
-        const prismaError = err as any;
-        console.error("Prisma error code:", prismaError.code);
-        
-        if (prismaError.code === 'P2002') {
-          console.error("Unique constraint violation");
-          return NextResponse.json(
-            { error: "Feedback already exists for this booking." },
-            { status: 409 }
-          );
-        } else if (prismaError.code === 'P2003') {
-          console.error("Foreign key constraint violation");
-          return NextResponse.json(
-            { error: "Invalid reference - booking or user not found." },
-            { status: 400 }
-          );
-        }
+      if (prismaError.code === "P2025") {
+        return Response.json(
+          { error: "Visit request not found" },
+          { status: 404 }
+        );
       }
     }
 
-    return NextResponse.json(
-      { 
-        error: "Failed to create feedback. Please try again.",
-        details: process.env.NODE_ENV === 'development' ? String(err) : undefined
+    return Response.json({ error: "Internal server error" }, { status: 500 });
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+// For Pages Router (Next.js 12 and below)
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  try {
+    const {
+      bookingId,
+      rating,
+      experience,
+      suggestions,
+      purchaseInterest,
+      clerkId,
+    } = req.body;
+
+    // Validate required fields
+    if (!clerkId?.trim()) {
+      return res.status(400).json({ error: "User ID is required" });
+    }
+
+    if (!bookingId?.trim()) {
+      return res.status(400).json({ error: "Booking ID is required" });
+    }
+
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ error: "Rating must be between 1 and 5" });
+    }
+
+    if (!experience?.trim()) {
+      return res.status(400).json({ error: "Experience feedback is required" });
+    }
+
+    if (!suggestions?.trim()) {
+      return res.status(400).json({ error: "Suggestions are required" });
+    }
+
+    if (purchaseInterest === undefined) {
+      return res.status(400).json({ error: "Purchase interest is required" });
+    }
+
+    // Find the user by Clerk ID
+    const user = await prisma.user.findUnique({
+      where: { clerkId: clerkId.trim() },
+    });
+
+    if (!user) {
+      return res
+        .status(404)
+        .json({ error: "User not found - Please sign up first" });
+    }
+
+    // Verify the visit request exists and belongs to the user
+    const visitRequest = await prisma.visitRequest.findFirst({
+      where: {
+        id: bookingId,
+        userId: user.id,
       },
-      { status: 500 }
-    );
+      include: {
+        plot: {
+          include: {
+            project: true,
+          },
+        },
+      },
+    });
+
+    if (!visitRequest) {
+      return res.status(404).json({
+        error: "Visit request not found or does not belong to this user",
+      });
+    }
+
+    // Check if feedback already exists
+    const existingFeedback = await prisma.feedback.findUnique({
+      where: {
+        visitRequestId_userId: {
+          visitRequestId: bookingId,
+          userId: user.id,
+        },
+      },
+    });
+
+    if (existingFeedback) {
+      return res
+        .status(409)
+        .json({ error: "Feedback already submitted for this visit" });
+    }
+
+    // Create the feedback
+    const feedback = await prisma.feedback.create({
+      data: {
+        visitRequestId: bookingId,
+        userId: user.id,
+        rating: parseInt(rating),
+        experience: experience.trim(),
+        suggestions: suggestions.trim(),
+        purchaseInterest:
+          purchaseInterest === true
+            ? true
+            : purchaseInterest === false
+            ? false
+            : null,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        visitRequest: {
+          include: {
+            plot: {
+              include: {
+                project: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Feedback submitted successfully",
+      feedback: {
+        id: feedback.id,
+        rating: feedback.rating,
+        experience: feedback.experience,
+        suggestions: feedback.suggestions,
+        purchaseInterest: feedback.purchaseInterest,
+        createdAt: feedback.createdAt,
+        visitRequest: {
+          id: feedback.visitRequest.id,
+          date: feedback.visitRequest.date,
+          plot: {
+            id: feedback.visitRequest.plot.id,
+            title: feedback.visitRequest.plot.title,
+            location: feedback.visitRequest.plot.location,
+            project: {
+              id: feedback.visitRequest.plot.project.id,
+              name: feedback.visitRequest.plot.project.name,
+            },
+          },
+        },
+        user: {
+          id: feedback.user.id,
+          name: feedback.user.name,
+          email: feedback.user.email,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Feedback submission error:", error);
+
+    // Type guard for Prisma errors
+    if (error && typeof error === "object" && "code" in error) {
+      const prismaError = error as { code: string };
+      if (prismaError.code === "P2002") {
+        return res
+          .status(409)
+          .json({ error: "Feedback already exists for this visit" });
+      }
+
+      if (prismaError.code === "P2025") {
+        return res.status(404).json({ error: "Visit request not found" });
+      }
+    }
+
+    res.status(500).json({ error: "Internal server error" });
+  } finally {
+    await prisma.$disconnect();
   }
 }
