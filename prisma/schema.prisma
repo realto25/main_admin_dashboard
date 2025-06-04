@@ -1,11 +1,14 @@
+
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
+        
 
 model Project {
   id          String   @id @default(cuid())
@@ -13,8 +16,8 @@ model Project {
   location    String
   description String
   imageUrl    String
-  plots       Plot[]
   createdAt   DateTime @default(now())
+  plots       Plot[]
 }
 
 model Plot {
@@ -30,39 +33,38 @@ model Plot {
   longitude     Float
   facing        String
   amenities     String[]
-  mapEmbedUrl   String?        @db.Text
-  description   String         @db.Text
-  project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  mapEmbedUrl   String?
+  description   String
   projectId     String
-  owner         User?          @relation("PlotOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   ownerId       String?
-  visitRequests VisitRequest[]
-  camera        Camera?        @relation(fields: [cameraId], references: [id])
-  clientPlot    ClientPlot?
-  lands         Land[]         @relation("PlotLands")
-  SellRequest   SellRequest[]
   createdAt     DateTime       @default(now())
   cameraId      String?
+  clientPlot    ClientPlot?
+  lands         Land[]         @relation("PlotLands")
+  camera        Camera?        @relation(fields: [cameraId], references: [id])
+  owner         User?          @relation("PlotOwner", fields: [ownerId], references: [id])
+  project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  SellRequest   SellRequest[]
+  visitRequests VisitRequest[]
 }
 
 model Land {
-  id           String        @id @default(cuid())
-  number       String
-  size         String
-  price        Int
-  status       PlotStatus
-  x            Int
-  y            Int
-  plot         Plot          @relation("PlotLands", fields: [plotId], references: [id], onDelete: Cascade)
-  plotId       String
-  owner        User?         @relation("UserOwnedLands", fields: [ownerId], references: [id], onDelete: SetNull)
-  ownerId      String?
-  qrCode       String?
-  cameraIp     String?
-  camera       Camera?
-  buyRequests  BuyRequest[]
-  createdAt    DateTime      @default(now())
-  sellRequests SellRequest[]
+  id          String       @id @default(cuid())
+  price       Int
+  plotId      String
+  createdAt   DateTime     @default(now())
+  number      String
+  size        String
+  status      PlotStatus
+  x           Int
+  y           Int
+  ownerId     String?
+  cameraIp    String?
+  qrCode      String?
+  buyRequests BuyRequest[]
+  camera      Camera?
+  owner       User?        @relation("UserOwnedLands", fields: [ownerId], references: [id])
+  plot        Plot         @relation("PlotLands", fields: [plotId], references: [id], onDelete: Cascade)
 }
 
 model User {
@@ -72,34 +74,34 @@ model User {
   email            String         @unique
   phone            String?
   role             UserRole       @default(GUEST)
-  ownedLands       Land[]         @relation("UserOwnedLands")
-  clientPlots      ClientPlot[]
-  visitRequests    VisitRequest[]
-  feedback         Feedback[]
-  sentMessages     Message[]      @relation("SentMessages")
-  receivedMessages Message[]      @relation("ReceivedMessages")
-  ownedPlots       Plot[]         @relation("PlotOwner")
-  SellRequest      SellRequest[]
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
+  clientPlots      ClientPlot[]
+  feedback         Feedback[]
+  ownedLands       Land[]         @relation("UserOwnedLands")
+  receivedMessages Message[]      @relation("ReceivedMessages")
+  sentMessages     Message[]      @relation("SentMessages")
+  ownedPlots       Plot[]         @relation("PlotOwner")
+  SellRequest      SellRequest[]
+  visitRequests    VisitRequest[]
 }
 
 model ClientPlot {
   id        String   @id @default(cuid())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String
-  plot      Plot     @relation(fields: [plotId], references: [id], onDelete: Cascade)
   plotId    String   @unique
   createdAt DateTime @default(now())
+  plot      Plot     @relation(fields: [plotId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Camera {
   id        String   @id @default(cuid())
   ipAddress String
   label     String?
-  land      Land     @relation(fields: [landId], references: [id], onDelete: Cascade)
-  landId    String   @unique
   createdAt DateTime @default(now())
+  landId    String   @unique
+  land      Land     @relation(fields: [landId], references: [id], onDelete: Cascade)
   Plot      Plot[]
 }
 
@@ -108,9 +110,9 @@ model BuyRequest {
   name      String
   phone     String
   message   String?
-  land      Land     @relation(fields: [landId], references: [id], onDelete: Cascade)
   landId    String
   createdAt DateTime @default(now())
+  land      Land     @relation(fields: [landId], references: [id], onDelete: Cascade)
 }
 
 model VisitRequest {
@@ -123,52 +125,50 @@ model VisitRequest {
   status    VisitStatus @default(PENDING)
   qrCode    String?
   expiresAt DateTime?
-  plot      Plot        @relation(fields: [plotId], references: [id], onDelete: Cascade)
   plotId    String
-  user      User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
   userId    String?
-  feedback  Feedback[]
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
+  feedback  Feedback[]
+  plot      Plot        @relation(fields: [plotId], references: [id], onDelete: Cascade)
+  user      User?       @relation(fields: [userId], references: [id])
 }
 
 model Feedback {
   id               String       @id @default(cuid())
   visitRequestId   String
   rating           Int          @db.SmallInt
-  experience       String       @db.Text
-  suggestions      String       @db.Text
+  experience       String
+  suggestions      String
   purchaseInterest Boolean?
-  visitRequest     VisitRequest @relation(fields: [visitRequestId], references: [id], onDelete: Cascade)
-  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId           String
   createdAt        DateTime     @default(now())
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  visitRequest     VisitRequest @relation(fields: [visitRequestId], references: [id], onDelete: Cascade)
 
   @@unique([visitRequestId, userId])
 }
 
 model Message {
   id         String   @id @default(cuid())
-  content    String   @db.Text
-  sender     User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  content    String
   senderId   String
-  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
   receiverId String
   isRead     Boolean  @default(false)
   createdAt  DateTime @default(now())
+  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender     User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
 }
 
 model SellRequest {
   id        String   @id @default(cuid())
-  land      Land     @relation(fields: [landId], references: [id], onDelete: Cascade)
-  landId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plotId    String
   userId    String
-  reason    String   @db.Text
+  reason    String
   status    String   @default("pending")
   createdAt DateTime @default(now())
-  Plot      Plot?    @relation(fields: [plotId], references: [id])
-  plotId    String?
+  Plot      Plot     @relation(fields: [plotId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 enum UserRole {

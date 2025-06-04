@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { UserRole } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
@@ -10,7 +11,7 @@ export async function POST(req: NextRequest) {
     }
 
     const user = await prisma.user.create({
-      data: { name, email, phone, clerkId, role },
+      data: { name, email, phone, clerkId, role: role as UserRole },
     });
 
     return NextResponse.json(user, { status: 201 });
@@ -22,12 +23,12 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const role = searchParams.get("role");
+  const roleParam = searchParams.get("role");
 
   const users = await prisma.user.findMany({
-    where: role ? { role } : {},
+    where: roleParam ? { role: roleParam as UserRole } : undefined,
     orderBy: { createdAt: "desc" },
   });
-  
+
   return NextResponse.json(users);
 }

@@ -1,18 +1,22 @@
-import { AssignCameraDialog } from "@/components/AssignCameraDialog";
+import AssignCameraToPlotDialog from "@/components/AssignCameraToPlotDialog";
 import { CameraList } from "@/components/CameraList";
 import { prisma } from "@/lib/prisma";
 
 export default async function CamerasPage() {
   const cameras = await prisma.camera.findMany({
     include: {
-      plot: {
-        select: {
-          title: true,
-          location: true,
-          owner: {
+      land: {
+        include: {
+          plot: {
             select: {
-              name: true,
-              email: true,
+              title: true,
+              location: true,
+              owner: {
+                select: {
+                  name: true,
+                  email: true,
+                },
+              },
             },
           },
         },
@@ -36,15 +40,21 @@ export default async function CamerasPage() {
     });
   };
 
+  // Transform cameras data to match CameraList props
+  const transformedCameras = cameras.map((camera) => ({
+    ...camera,
+    plot: camera.land.plot,
+  }));
+
   return (
     <div className="container mx-auto py-10">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Camera Management</h1>
-        <AssignCameraDialog plots={plots} />
+        <AssignCameraToPlotDialog plots={plots} />
       </div>
 
       <div className="bg-white rounded-lg shadow">
-        <CameraList cameras={cameras} onDelete={handleDelete} />
+        <CameraList cameras={transformedCameras} onDelete={handleDelete} />
       </div>
     </div>
   );

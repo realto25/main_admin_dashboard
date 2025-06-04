@@ -19,12 +19,17 @@ interface SellRequest {
   user: {
     name: string;
     email: string;
+    phone: string | null;
   };
-  plot: {
+  land: {
+    number: string;
+    size: string;
+    price: number;
+  };
+  Plot: {
     title: string;
     location: string;
-    status: string;
-  };
+  } | null;
 }
 
 interface SellRequestTableProps {
@@ -51,8 +56,8 @@ export function SellRequestTable({
         <TableHeader>
           <TableRow>
             <TableHead>Client</TableHead>
+            <TableHead>Land Details</TableHead>
             <TableHead>Plot</TableHead>
-            <TableHead>Location</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Requested On</TableHead>
             <TableHead className="text-right">Actions</TableHead>
@@ -67,10 +72,35 @@ export function SellRequestTable({
                   <p className="text-sm text-muted-foreground">
                     {request.user.email}
                   </p>
+                  {request.user.phone && (
+                    <p className="text-sm text-muted-foreground">
+                      {request.user.phone}
+                    </p>
+                  )}
                 </div>
               </TableCell>
-              <TableCell>{request.plot.title}</TableCell>
-              <TableCell>{request.plot.location}</TableCell>
+              <TableCell>
+                <div>
+                  <p className="font-medium">Land #{request.land.number}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {request.land.size} - ${request.land.price.toLocaleString()}
+                  </p>
+                </div>
+              </TableCell>
+              <TableCell>
+                {request.Plot ? (
+                  <>
+                    <p className="font-medium">{request.Plot.title}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {request.Plot.location}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No plot assigned
+                  </p>
+                )}
+              </TableCell>
               <TableCell>
                 <Badge
                   variant={

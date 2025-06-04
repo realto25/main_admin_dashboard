@@ -14,7 +14,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import AssignLandDialog from "@/components/AssignLandDialog";
-import GenerateQRCodeDialog from "@/components/GenerateQrCode";
+
 import LandLayoutEditor from "@/components/LandLayoutEditor";
 import EditPlotForm from "./EditPlotForm";
 
@@ -174,9 +174,7 @@ const PlotList = ({ projectId }: PlotListProps) => {
                 <AssignLandDialog plotId={plot.id} />
               </div>
 
-              <div className="mt-3">
-                <GenerateQRCodeDialog />
-              </div>
+             
             </CardContent>
           </Card>
         ))}

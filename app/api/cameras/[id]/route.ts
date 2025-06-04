@@ -25,7 +25,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         label: validatedData.label,
       },
       include: {
-        plot: {
+        Plot: {
           select: {
             title: true,
             location: true,

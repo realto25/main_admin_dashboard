@@ -8,13 +8,21 @@ export default async function SellRequestsPage() {
         select: {
           name: true,
           email: true,
+          phone: true,
         },
       },
-      plot: {
+      Plot: {
         select: {
           title: true,
           location: true,
-          status: true,
+          lands: {
+            select: {
+              number: true,
+              size: true,
+              price: true,
+            },
+            take: 1,
+          },
         },
       },
     },
@@ -22,6 +30,15 @@ export default async function SellRequestsPage() {
       createdAt: "desc",
     },
   });
+
+  const transformedRequests = sellRequests.map((request) => ({
+    ...request,
+    land: request.Plot?.lands[0] || {
+      number: "N/A",
+      size: "N/A",
+      price: 0,
+    },
+  }));
 
   const handleStatusChange = async (requestId: string, newStatus: string) => {
     "use server";
@@ -54,7 +71,7 @@ export default async function SellRequestsPage() {
 
       <div className="bg-white rounded-lg shadow">
         <SellRequestTable
-          requests={sellRequests}
+          requests={transformedRequests}
           onStatusChange={handleStatusChange}
         />
       </div>
