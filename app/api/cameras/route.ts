@@ -1,101 +1,107 @@
+// File: app/api/cameras/route.ts
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 
-const cameraSchema = z.object({
-  plotId: z.string(),
-  ipAddress: z.string().ip(),
-  label: z.string().optional(),
-});
-
-export async function GET(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const cameras = await prisma.camera.findMany({
-      include: {
-        plot: {
-          select: {
-            title: true,
-            location: true,
-            owner: {
-              select: {
-                name: true,
-                email: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
-
-    return NextResponse.json(cameras);
-  } catch (error) {
-    console.error("Error fetching cameras:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch cameras" },
-      { status: 500 }
-    );
-  }
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const validatedData = cameraSchema.parse(body);
-
-    // Check if plot exists and is available
-    const plot = await prisma.plot.findUnique({
-      where: { id: validatedData.plotId },
-      include: { camera: true },
-    });
-
-    if (!plot) {
-      return NextResponse.json({ error: "Plot not found" }, { status: 404 });
+    const { landId, ipAddress, label } = await req.json();
+    
+    if (!landId || !ipAddress) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    if (plot.camera) {
-      return NextResponse.json(
-        { error: "Plot already has a camera assigned" },
-        { status: 400 }
-      );
-    }
-
-    const camera = await prisma.camera.create({
-      data: {
-        plotId: validatedData.plotId,
-        ipAddress: validatedData.ipAddress,
-        label: validatedData.label,
-      },
-      include: {
-        plot: {
-          select: {
-            title: true,
-            location: true,
-            owner: {
-              select: {
-                name: true,
-                email: true,
-              },
-            },
-          },
-        },
+    const camera = await prisma.camera.upsert({
+      where: { landId },
+      update: { ipAddress, label },
+      create: {
+        landId,
+        ipAddress,
+        label,
       },
     });
 
     return NextResponse.json(camera);
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: "Invalid request data", details: error.errors },
-        { status: 400 }
-      );
+    console.error('Error creating/updating camera:', error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(req: NextRequest) {
+  try {
+    // Get authorization header
+    const authHeader = req.headers.get('authorization');
+    let userId = null;
+
+    // Try to extract user ID from authorization header if present
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        // If you're using Clerk, you might need to verify the token here
+        // For now, we'll get all cameras without user filtering
+        // You can add proper token verification later
+      } catch (err) {
+        console.log('Token verification failed:', err);
+      }
     }
 
-    console.error("Error creating camera:", error);
+    const { searchParams } = new URL(req.url);
+    const landId = searchParams.get('landId');
+    const cameraId = searchParams.get('cameraId');
+
+    if (cameraId) {
+      // Get specific camera by ID
+      const camera = await prisma.camera.findUnique({
+        where: {
+          id: cameraId,
+        },
+        // Remove the land relation check for now
+      });
+
+      if (!camera) {
+        return NextResponse.json({ error: "Camera not found" }, { status: 404 });
+      }
+
+      return NextResponse.json(camera);
+    }
+
+    if (landId) {
+      // Get cameras for specific land
+      const cameras = await prisma.camera.findMany({
+        where: {
+          landId: landId,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+
+      return NextResponse.json(cameras);
+    }
+
+    // Get all cameras (for testing - you can add user filtering later)
+    const cameras = await prisma.camera.findMany({
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return NextResponse.json(cameras);
+  } catch (error) {
+    console.error('Error fetching cameras:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    
     return NextResponse.json(
-      { error: "Failed to create camera" },
+      { 
+        error: "Internal server error",
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      },
       { status: 500 }
     );
   }

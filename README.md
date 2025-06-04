@@ -257,3 +257,163 @@ Realestate_project-main
 └─ tsconfig.json
 
 ```
+```
+main_admin_dashboard
+├─ app
+│  ├─ api
+│  │  ├─ all-users
+│  │  │  └─ route.ts
+│  │  ├─ cameras
+│  │  │  ├─ route.ts
+│  │  │  └─ [id]
+│  │  │     └─ route.ts
+│  │  ├─ clients
+│  │  │  └─ [id]
+│  │  │     └─ route.ts
+│  │  ├─ feedback
+│  │  │  └─ route.ts
+│  │  ├─ lands
+│  │  │  ├─ route.ts
+│  │  │  └─ [plotId]
+│  │  │     └─ route.ts
+│  │  ├─ messages
+│  │  │  └─ route.ts
+│  │  ├─ plots
+│  │  │  ├─ route.ts
+│  │  │  └─ [id]
+│  │  │     ├─ assign
+│  │  │     │  └─ route.ts
+│  │  │     └─ route.ts
+│  │  ├─ projects
+│  │  │  └─ route.ts
+│  │  ├─ sell-requests
+│  │  │  ├─ route.ts
+│  │  │  └─ [id]
+│  │  │     └─ route.ts
+│  │  ├─ users
+│  │  │  ├─ create
+│  │  │  │  └─ route.ts
+│  │  │  ├─ profile
+│  │  │  │  └─ route.ts
+│  │  │  ├─ route.ts
+│  │  │  ├─ [id]
+│  │  │  │  └─ route.ts
+│  │  │  └─ [userId]
+│  │  ├─ visit-requests
+│  │  │  ├─ route.ts
+│  │  │  └─ [id]
+│  │  │     ├─ approve
+│  │  │     │  └─ route.ts
+│  │  │     └─ reject
+│  │  │        └─ route.ts
+│  │  └─ webhooks
+│  │     └─ clerk
+│  │        └─ route.ts
+│  ├─ cameras
+│  │  └─ page.tsx
+│  ├─ clients
+│  │  ├─ AddClientForm.tsx
+│  │  ├─ ClientTable.tsx
+│  │  └─ page.tsx
+│  ├─ favicon.ico
+│  ├─ feedback
+│  │  ├─ columns.tsx
+│  │  └─ page.tsx
+│  ├─ globals.css
+│  ├─ land-layout
+│  │  └─ page.tsx
+│  ├─ layout.tsx
+│  ├─ managers
+│  ├─ page.tsx
+│  ├─ plots
+│  │  ├─ AddPlotForm.tsx
+│  │  ├─ AddProjectForm.tsx
+│  │  ├─ EditPlotForm.tsx
+│  │  ├─ layouts
+│  │  ├─ page.tsx
+│  │  ├─ PlotList.tsx
+│  │  └─ [id]
+│  │     ├─ page.tsx
+│  │     └─ ProjectDetailClient.tsx
+│  ├─ sell-requests
+│  │  └─ page.tsx
+│  ├─ users
+│  │  ├─ clients
+│  │  │  └─ page.tsx
+│  │  ├─ create
+│  │  │  └─ page.tsx
+│  │  ├─ managers
+│  │  │  └─ page.tsx
+│  │  └─ page.tsx
+│  ├─ visit-requests
+│  │  └─ page.tsx
+│  └─ _components
+│     └─ SideBar.tsx
+├─ bash.exe.stackdump
+├─ components
+│  ├─ app-sidebar.tsx
+│  ├─ AssignCameraDialog.tsx
+│  ├─ AssignPlotDialog.tsx
+│  ├─ CameraList.tsx
+│  ├─ ClientDetails.tsx
+│  ├─ ClientPlotList.tsx
+│  ├─ EditCameraDialog.tsx
+│  ├─ LandLayoutEditor.tsx
+│  ├─ nav-main.tsx
+│  ├─ nav-projects.tsx
+│  ├─ nav-user.tsx
+│  ├─ NotificationBell.tsx
+│  ├─ SellRequestActions.tsx
+│  ├─ SellRequestTable.tsx
+│  ├─ Sidebar.tsx
+│  ├─ team-switcher.tsx
+│  └─ ui
+│     ├─ alert-dialog.tsx
+│     ├─ alert.tsx
+│     ├─ avatar.tsx
+│     ├─ badge.tsx
+│     ├─ breadcrumb.tsx
+│     ├─ button.tsx
+│     ├─ card.tsx
+│     ├─ collapsible.tsx
+│     ├─ data-table.tsx
+│     ├─ dialog.tsx
+│     ├─ dropdown-menu.tsx
+│     ├─ form.tsx
+│     ├─ input.tsx
+│     ├─ label.tsx
+│     ├─ select.tsx
+│     ├─ separator.tsx
+│     ├─ sheet.tsx
+│     ├─ sidebar.tsx
+│     ├─ skeleton.tsx
+│     ├─ sonner.tsx
+│     ├─ table.tsx
+│     ├─ tabs.tsx
+│     ├─ textarea.tsx
+│     └─ tooltip.tsx
+├─ components.json
+├─ hooks
+│  └─ use-mobile.ts
+├─ lib
+│  ├─ api.ts
+│  ├─ clerk.ts
+│  ├─ prisma.ts
+│  ├─ types.ts
+│  └─ utils.ts
+├─ next.config.ts
+├─ package-lock.json
+├─ package.json
+├─ postcss.config.mjs
+├─ prisma
+│  └─ schema.prisma
+├─ public
+│  ├─ globe.svg
+│  ├─ logo.svg
+│  ├─ next.svg
+│  ├─ vercel.svg
+│  └─ window.svg
+├─ README.md
+└─ tsconfig.json
+
+```

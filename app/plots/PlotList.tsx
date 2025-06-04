@@ -1,4 +1,3 @@
-// app/plots/PlotList.tsx
 "use client";
 
 import { Badge } from "@/components/ui/badge";
@@ -9,12 +8,14 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Edit, IndianRupee, MapPin, Ruler, Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+
+import AssignLandDialog from "@/components/AssignLandDialog";
+import GenerateQRCodeDialog from "@/components/GenerateQrCode";
+import LandLayoutEditor from "@/components/LandLayoutEditor";
 import EditPlotForm from "./EditPlotForm";
 
 interface Plot {
@@ -23,7 +24,7 @@ interface Plot {
   dimension: string;
   price: number;
   priceLabel: string;
-  status: "AVAILABLE" | "ADVANCE" | "SOLD";
+  status: "AVAILABLE" | "ADVANCE" | " SOLD";
   imageUrls: string[];
   location: string;
   latitude: number;
@@ -40,26 +41,19 @@ interface PlotListProps {
 }
 
 const PlotList = ({ projectId }: PlotListProps) => {
-  const router = useRouter();
   const [plots, setPlots] = useState<Plot[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingPlotId, setEditingPlotId] = useState<string | null>(null);
-
-  // Placeholder for current user (replace with your auth/context logic)
-  const currentUser = {
-    id: "client-id-123", // Replace with actual client id
-    role: "CLIENT", // or 'MANAGER'
-  };
+  const [landLayoutPlotId, setLandLayoutPlotId] = useState<string | null>(null);
 
   const fetchPlots = async () => {
     try {
-      const response = await fetch(`/api/plots?projectId=${projectId}`);
-      if (!response.ok) throw new Error("Failed to fetch plots");
-      const data = await response.json();
+      const res = await fetch(`/api/plots?projectId=${projectId}`);
+      if (!res.ok) throw new Error("Failed to fetch plots");
+      const data = await res.json();
       setPlots(data);
-    } catch (error) {
-      console.error("Error fetching plots:", error);
-      toast.error("Failed to fetch plots");
+    } catch (err) {
+      toast.error("Error fetching plots");
     } finally {
       setLoading(false);
     }
@@ -69,52 +63,34 @@ const PlotList = ({ projectId }: PlotListProps) => {
     fetchPlots();
   }, [projectId]);
 
-  const handleDelete = async (plotId: string) => {
-    if (!confirm("Are you sure you want to delete this plot?")) return;
+  const handleDelete = async (id: string) => {
+    if (!confirm("Delete this plot?")) return;
 
     try {
-      const res = await fetch(`/api/plots/${plotId}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete plot");
-      toast.success("Plot deleted successfully");
+      const res = await fetch(`/api/plots/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete");
+      toast.success("Plot deleted");
       fetchPlots();
-    } catch (error) {
-      console.error("Error deleting plot:", error);
-      toast.error("Failed to delete plot");
+    } catch (err) {
+      toast.error("Delete failed");
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "AVAILABLE":
-        return "bg-green-100 text-green-800 hover:bg-green-200";
+        return "bg-green-100 text-green-800";
       case "ADVANCE":
-        return "bg-yellow-100 text-yellow-800 hover:bg-yellow-200";
+        return "bg-yellow-100 text-yellow-800";
       case "SOLD":
-        return "bg-red-100 text-red-800 hover:bg-red-200";
+        return "bg-red-100 text-red-800";
       default:
-        return "bg-gray-100 text-gray-800 hover:bg-gray-200";
+        return "bg-gray-100 text-gray-800";
     }
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-2"></div>
-          <p>Loading plots...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (plots.length === 0) {
-    return (
-      <div className="text-center p-8">
-        <p className="text-muted-foreground">
-          No plots found for this project.
-        </p>
-      </div>
-    );
+    return <p className="p-4">Loading plots...</p>;
   }
 
   return (
@@ -123,11 +99,13 @@ const PlotList = ({ projectId }: PlotListProps) => {
         {plots.map((plot) => (
           <Card
             key={plot.id}
-            className="overflow-hidden hover:shadow-lg transition-shadow"
+            onClick={() => {
+              if (!editingPlotId) setLandLayoutPlotId(plot.id);
+            }}
+            className="hover:shadow-md cursor-pointer transition-shadow"
           >
             <div className="relative">
-              {/* Image */}
-              {plot.imageUrls.length > 0 && plot.imageUrls[0] && (
+              {plot.imageUrls?.[0] && (
                 <div className="aspect-video overflow-hidden">
                   <img
                     src={plot.imageUrls[0]}
@@ -135,174 +113,101 @@ const PlotList = ({ projectId }: PlotListProps) => {
                     className="w-full h-full object-cover"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
-                      target.src =
-                        "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f3f4f6'/%3E%3Ctext x='50' y='50' font-family='Arial' font-size='12' fill='%239ca3af' text-anchor='middle' dominant-baseline='middle'%3ENo Image%3C/text%3E%3C/svg%3E";
+                      target.src = "/placeholder.svg";
                     }}
                   />
                 </div>
               )}
 
-              {/* Status Badge */}
               <div className="absolute top-2 right-2">
                 <Badge className={getStatusColor(plot.status)}>
                   {plot.status}
                 </Badge>
               </div>
-
-              {/* Multiple Images Indicator */}
-              {plot.imageUrls.length > 1 && (
-                <div className="absolute top-2 left-2 bg-black/70 text-white  text-xs px-2 py-1 rounded">
-                  +{plot.imageUrls.length - 1} more
-                </div>
-              )}
             </div>
 
             <CardContent className="p-4">
-              <div className="space-y-3">
-                {/* Title */}
-                <h3 className="font-semibold text-lg line-clamp-1">
-                  {plot.title}
-                </h3>
+              <h3 className="font-semibold text-lg">{plot.title}</h3>
 
-                {/* Location */}
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <MapPin className="h-4 w-4 mr-1" />
-                  <span className="line-clamp-1">{plot.location}</span>
-                </div>
+              <div className="text-sm text-muted-foreground flex items-center mt-1">
+                <MapPin className="h-4 w-4 mr-1" />
+                {plot.location}
+              </div>
 
-                {/* Price */}
-                <div className="flex items-center text-lg font-bold text-green-600">
-                  <IndianRupee className="h-4 w-4 mr-1" />
-                  {plot.price.toLocaleString()}
-                </div>
+              <div className="text-green-600 font-bold mt-2 text-lg flex items-center">
+                <IndianRupee className="h-4 w-4 mr-1" />
+                {plot.price.toLocaleString()}
+              </div>
 
-                {/* Dimension */}
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <Ruler className="h-4 w-4 mr-1" />
-                  <span>{plot.dimension}</span>
-                </div>
+              <div className="flex items-center text-sm text-muted-foreground mt-1">
+                <Ruler className="h-4 w-4 mr-1" />
+                {plot.dimension}
+              </div>
 
-                {/* Action Buttons */}
-                <div className="flex gap-2 pt-2">
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={() => setEditingPlotId(plot.id)}
-                    className="flex-1"
-                  >
-                    <Edit className="h-4 w-4 mr-1" />
-                    Edit
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDelete(plot.id)}
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                  {/* Sell Button for client-owned plots */}
-                  {plot.ownerId === currentUser.id &&
-                    currentUser.role === "CLIENT" && (
-                      <SellPlotButton plotId={plot.id} onSell={fetchPlots} />
-                    )}
-                </div>
+              <div className="flex gap-2 mt-4">
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingPlotId(plot.id);
+                  }}
+                  className="flex-1"
+                >
+                  <Edit className="h-4 w-4 mr-1" />
+                  Edit
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(plot.id);
+                  }}
+                  className="text-red-600"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="mt-3">
+                <AssignLandDialog plotId={plot.id} />
+              </div>
+
+              <div className="mt-3">
+                <GenerateQRCodeDialog />
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Edit Dialog */}
-      {editingPlotId && (
+      {/* Plot Edit Dialog */}
+      {editingPlotId && !landLayoutPlotId && (
         <EditPlotForm
           plotId={editingPlotId}
-          isOpen={!!editingPlotId}
+          isOpen={true}
           onClose={() => setEditingPlotId(null)}
           onSuccess={() => {
-            setEditingPlotId(null);
             fetchPlots();
+            setEditingPlotId(null);
           }}
         />
+      )}
+
+      {/* Land Layout Editor Dialog */}
+      {landLayoutPlotId && !editingPlotId && (
+        <Dialog open={true} onOpenChange={() => setLandLayoutPlotId(null)}>
+          <DialogContent className="max-w-6xl w-full">
+            <DialogHeader>
+              <DialogTitle>Manage Lands for Plot</DialogTitle>
+            </DialogHeader>
+            <LandLayoutEditor plotId={landLayoutPlotId} />
+          </DialogContent>
+        </Dialog>
       )}
     </>
   );
 };
-
-function SellPlotButton({
-  plotId,
-  onSell,
-}: {
-  plotId: string;
-  onSell: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [reason, setReason] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const handleSell = async () => {
-    if (!reason.trim()) {
-      toast.error("Please provide a reason to sell.");
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/plots/${plotId}/sell`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason }),
-      });
-      if (!res.ok) throw new Error("Failed to notify admin");
-      toast.success("Sell request sent to admin.");
-      setOpen(false);
-      setReason("");
-      onSell();
-    } catch (error) {
-      toast.error("Failed to send sell request");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-orange-600 border-orange-600 hover:bg-orange-50 ml-1"
-        >
-          Sell
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Reason to Sell</DialogTitle>
-        </DialogHeader>
-        <textarea
-          value={reason}
-          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-            setReason(e.target.value)
-          }
-          placeholder="Please provide your reason for selling this plot."
-          rows={4}
-          className="w-full border rounded p-2 text-sm focus:outline-none focus:ring focus:border-blue-300 min-h-[80px]"
-        />
-        <div className="flex justify-end gap-2 pt-2">
-          <Button
-            variant="outline"
-            onClick={() => setOpen(false)}
-            disabled={loading}
-          >
-            Cancel
-          </Button>
-          <Button onClick={handleSell} disabled={loading}>
-            {loading ? "Sending..." : "Send to Admin"}
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 export default PlotList;

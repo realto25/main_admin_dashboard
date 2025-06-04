@@ -1,35 +1,25 @@
 import { prisma } from "@/lib/prisma";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-export async function GET() {
+export async function POST(req: NextRequest) {
   try {
-    const sellRequests = await prisma.sellRequest.findMany({
-      include: {
-        user: {
-          select: {
-            name: true,
-            email: true,
-          },
-        },
-        plot: {
-          select: {
-            title: true,
-            location: true,
-            status: true,
-          },
-        },
-      },
-      orderBy: {
-        createdAt: "desc",
+    const { landId, reason, userId } = await req.json();
+
+    if (!landId || !reason || !userId) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    const newRequest = await prisma.sellRequest.create({
+      data: {
+        landId,
+        reason,
+        userId,
       },
     });
 
-    return NextResponse.json(sellRequests);
-  } catch (error) {
-    console.error("Error fetching sell requests:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch sell requests" },
-      { status: 500 }
-    );
+    return NextResponse.json(newRequest);
+  } catch (err) {
+    console.error("Error submitting sell request:", err);
+    return NextResponse.json({ error: "Failed to submit request" }, { status: 500 });
   }
 }

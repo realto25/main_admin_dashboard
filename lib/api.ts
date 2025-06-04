@@ -45,3 +45,6 @@ export const getUserByClerkId = async (clerkId: string) => {
     where: { clerkId }
   });
 };
+
+// File: lib/api.ts
+
