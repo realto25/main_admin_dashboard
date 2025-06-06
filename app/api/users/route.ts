@@ -1,34 +1,78 @@
+// app/api/users/route.ts
 import { prisma } from "@/lib/prisma";
-import { UserRole } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 
-export async function POST(req: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
-    const { name, email, phone, clerkId, role } = await req.json();
+    const { searchParams } = new URL(req.url);
+    const role = searchParams.get("role");
 
-    if (!name || !email || !clerkId || !role) {
-      return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+    let whereClause: any = {};
+    
+    if (role) {
+      whereClause.role = role;
     }
 
-    const user = await prisma.user.create({
-      data: { name, email, phone, clerkId, role: role as UserRole },
+    const users = await prisma.user.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        clerkId: true,
+        name: true,
+        email: true,
+        role: true,
+        phone: true,
+        createdAt: true,
+        managerOffices: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
     });
 
-    return NextResponse.json(user, { status: 201 });
+    return NextResponse.json(users);
   } catch (error) {
-    console.error("Error creating user", error);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    console.error("Error fetching users:", error);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
 
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const roleParam = searchParams.get("role");
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { clerkId, name, email, role, phone } = body;
 
-  const users = await prisma.user.findMany({
-    where: roleParam ? { role: roleParam as UserRole } : undefined,
-    orderBy: { createdAt: "desc" },
-  });
+    if (!clerkId || !name || !email || !role) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
 
-  return NextResponse.json(users);
+    const user = await prisma.user.create({
+      data: {
+        clerkId,
+        name,
+        email,
+        role,
+        phone,
+      },
+    });
+
+    return NextResponse.json(user);
+  } catch (error) {
+    console.error("Error creating user:", error);
+    
+    // Handle unique constraint violations
+    if (error.code === 'P2002') {
+      return NextResponse.json(
+        { error: "User with this email or clerkId already exists" },
+        { status: 400 }
+      );
+    }
+    
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
 }

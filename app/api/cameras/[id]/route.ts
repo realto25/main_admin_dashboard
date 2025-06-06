@@ -1,38 +1,67 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { getAuth } from "@clerk/nextjs/server";
 
 const updateCameraSchema = z.object({
-  ipAddress: z.string().ip(),
+  ipAddress: z.string().url(),
   label: z.string().optional(),
 });
 
 type RouteContext = {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 };
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
-  const { id } = await context.params;
+  const { userId } = getAuth(request as any);
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = context.params;
 
   try {
     const body = await request.json();
     const validatedData = updateCameraSchema.parse(body);
 
-    const camera = await prisma.camera.update({
+    // Verify user owns the camera
+    const camera = await prisma.camera.findFirst({
+      where: { id },
+      include: {
+        land: {
+          select: {
+            ownerId: true
+          }
+        }
+      }
+    });
+
+    if (!camera || camera.land?.ownerId !== userId) {
+      return NextResponse.json(
+        { error: "Camera not found or access denied" },
+        { status: 404 }
+      );
+    }
+
+    const updatedCamera = await prisma.camera.update({
       where: { id },
       data: {
         ipAddress: validatedData.ipAddress,
         label: validatedData.label,
       },
       include: {
-        Plot: {
-          select: {
-            title: true,
-            location: true,
-            owner: {
+        land: {
+          include: {
+            plot: {
               select: {
-                name: true,
-                email: true,
+                title: true,
+                location: true,
+                owner: {
+                  select: {
+                    name: true,
+                    email: true,
+                  },
+                },
               },
             },
           },
@@ -40,7 +69,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       },
     });
 
-    return NextResponse.json(camera);
+    return NextResponse.json(updatedCamera);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -58,9 +87,33 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 }
 
 export async function DELETE(request: NextRequest, context: RouteContext) {
-  const { id } = await context.params;
+  const { userId } = getAuth(request as any);
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = context.params;
 
   try {
+    // Verify user owns the camera
+    const camera = await prisma.camera.findFirst({
+      where: { id },
+      include: {
+        land: {
+          select: {
+            ownerId: true
+          }
+        }
+      }
+    });
+
+    if (!camera || camera.land?.ownerId !== userId) {
+      return NextResponse.json(
+        { error: "Camera not found or access denied" },
+        { status: 404 }
+      );
+    }
+
     await prisma.camera.delete({
       where: { id },
     });

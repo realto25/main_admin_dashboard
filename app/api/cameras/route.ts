@@ -1,15 +1,32 @@
-// File: app/api/cameras/route.ts
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { getAuth } from "@clerk/nextjs/server";
 
 export async function POST(req: NextRequest) {
   try {
+    const { userId } = getAuth(req as any);
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { landId, ipAddress, label } = await req.json();
 
     if (!landId || !ipAddress) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
+      );
+    }
+
+    // Verify user owns the land
+    const land = await prisma.land.findFirst({
+      where: { id: landId, ownerId: userId }
+    });
+
+    if (!land) {
+      return NextResponse.json(
+        { error: "Land not found or access denied" },
+        { status: 403 }
       );
     }
 
@@ -35,19 +52,9 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    // Get authorization header
-    const authHeader = req.headers.get("authorization");
-    let userId = null;
-
-    // Try to extract user ID from authorization header if present
-    if (authHeader && authHeader.startsWith("Bearer ")) {
-      try {
-        // If you're using Clerk, you might need to verify the token here
-        // For now, we'll get all cameras without user filtering
-        // You can add proper token verification later
-      } catch (err) {
-        console.log("Token verification failed:", err);
-      }
+    const { userId } = getAuth(req as any);
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { searchParams } = new URL(req.url);
@@ -55,15 +62,28 @@ export async function GET(req: NextRequest) {
     const cameraId = searchParams.get("cameraId");
 
     if (cameraId) {
-      // Get specific camera by ID
       const camera = await prisma.camera.findUnique({
-        where: {
-          id: cameraId,
-        },
-        // Remove the land relation check for now
+        where: { id: cameraId },
+        include: {
+          land: {
+            include: {
+              plot: {
+                select: {
+                  title: true,
+                  location: true,
+                  project: {
+                    select: {
+                      name: true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       });
 
-      if (!camera) {
+      if (!camera || camera.land?.ownerId !== userId) {
         return NextResponse.json(
           { error: "Camera not found" },
           { status: 404 }
@@ -74,47 +94,68 @@ export async function GET(req: NextRequest) {
     }
 
     if (landId) {
-      // Get cameras for specific land
+      // Verify user owns the land
+      const land = await prisma.land.findFirst({
+        where: { id: landId, ownerId: userId }
+      });
+
+      if (!land) {
+        return NextResponse.json(
+          { error: "Land not found or access denied" },
+          { status: 403 }
+        );
+      }
+
       const cameras = await prisma.camera.findMany({
-        where: {
-          landId: landId,
+        where: { landId },
+        include: {
+          land: {
+            include: {
+              plot: {
+                select: {
+                  title: true,
+                  location: true
+                }
+              }
+            }
+          }
         },
-        orderBy: {
-          createdAt: "desc",
-        },
+        orderBy: { createdAt: "desc" },
       });
 
       return NextResponse.json(cameras);
     }
 
-    // Get all cameras (for testing - you can add user filtering later)
+    // Get all cameras for user's lands
+    const userLands = await prisma.land.findMany({
+      where: { ownerId: userId },
+      select: { id: true }
+    });
+
+    const landIds = userLands.map(land => land.id);
+    
     const cameras = await prisma.camera.findMany({
-      orderBy: {
-        createdAt: "desc",
+      where: { landId: { in: landIds } },
+      include: {
+        land: {
+          include: {
+            plot: {
+              select: {
+                title: true,
+                location: true
+              }
+            }
+          }
+        }
       },
+      orderBy: { createdAt: "desc" },
     });
 
     return NextResponse.json(cameras);
   } catch (error) {
     console.error("Error fetching cameras:", error);
-    if (error instanceof Error) {
-      console.error("Error details:", {
-        message: error.message,
-        stack: error.stack,
-        name: error.name,
-      });
-    } else {
-      console.error("Error details:", error);
-    }
-
     return NextResponse.json(
-      {
-        error: "Internal server error",
-        details:
-          process.env.NODE_ENV === "development" && error instanceof Error
-            ? error.message
-            : undefined,
-      },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

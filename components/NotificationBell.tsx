@@ -28,10 +28,19 @@ export function NotificationBell() {
     try {
       const response = await fetch("/api/notifications");
       const data = await response.json();
-      setNotifications(data);
-      setUnreadCount(data.filter((n: Notification) => !n.isRead).length);
+
+      // Ensure data is an array
+      const notificationsArray = Array.isArray(data) ? data : [];
+
+      setNotifications(notificationsArray);
+      setUnreadCount(
+        notificationsArray.filter((n: Notification) => !n.isRead).length
+      );
     } catch (error) {
       console.error("Error fetching notifications:", error);
+      // Reset to empty state on error
+      setNotifications([]);
+      setUnreadCount(0);
     }
   };
 

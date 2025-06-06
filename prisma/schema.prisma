@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,7 +7,6 @@ datasource db {
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
-        
 
 model Project {
   id          String   @id @default(cuid())
@@ -46,6 +44,9 @@ model Plot {
   project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   SellRequest   SellRequest[]
   visitRequests VisitRequest[]
+
+  @@index([projectId])
+  @@index([ownerId])
 }
 
 model Land {
@@ -59,31 +60,42 @@ model Land {
   x           Int
   y           Int
   ownerId     String?
-  cameraIp    String?
   qrCode      String?
   buyRequests BuyRequest[]
-  camera      Camera?
+  camera      Camera? // Removed cameraIp, as Camera model handles this
   owner       User?        @relation("UserOwnedLands", fields: [ownerId], references: [id])
   plot        Plot         @relation("PlotLands", fields: [plotId], references: [id], onDelete: Cascade)
+
+  @@index([plotId])
+  @@index([ownerId])
 }
 
 model User {
-  id               String         @id @default(cuid())
-  clerkId          String         @unique
-  name             String
-  email            String         @unique
-  phone            String?
-  role             UserRole       @default(GUEST)
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-  clientPlots      ClientPlot[]
-  feedback         Feedback[]
-  ownedLands       Land[]         @relation("UserOwnedLands")
-  receivedMessages Message[]      @relation("ReceivedMessages")
-  sentMessages     Message[]      @relation("SentMessages")
-  ownedPlots       Plot[]         @relation("PlotOwner")
-  SellRequest      SellRequest[]
-  visitRequests    VisitRequest[]
+  id                    String         @id @default(cuid())
+  clerkId               String         @unique
+  name                  String
+  email                 String         @unique
+  phone                 String?
+  role                  UserRole
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  clientPlots           ClientPlot[]
+  feedback              Feedback[]
+  ownedLands            Land[]         @relation("UserOwnedLands")
+  receivedMessages      Message[]      @relation("ReceivedMessages")
+  sentMessages          Message[]      @relation("SentMessages")
+  ownedPlots            Plot[]         @relation("PlotOwner")
+  SellRequest           SellRequest[]
+  visitRequests         VisitRequest[]
+  attendances           Attendance[]
+  managerOffices        Office[]       @relation("ManagerOffices")
+  assignedVisitRequests VisitRequest[] @relation("AssignedVisitRequests")
+  assignedBuyRequests   BuyRequest[]   @relation("AssignedBuyRequests")
+  notifications         Notification[]
+  leaveRequests         LeaveRequest[] @relation("UserLeaveRequests")
+
+  @@index([clerkId])
+  @@index([email])
 }
 
 model ClientPlot {
@@ -93,6 +105,9 @@ model ClientPlot {
   createdAt DateTime @default(now())
   plot      Plot     @relation(fields: [plotId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([plotId])
 }
 
 model Camera {
@@ -100,38 +115,57 @@ model Camera {
   ipAddress String
   label     String?
   createdAt DateTime @default(now())
-  landId    String   @unique
-  land      Land     @relation(fields: [landId], references: [id], onDelete: Cascade)
-  Plot      Plot[]
+  landId    String?  @unique // Made optional to allow cameras on plots without lands
+  land      Land?    @relation(fields: [landId], references: [id], onDelete: Cascade)
+  Plot      Plot[] // Camera can be associated with Plots directly
+
+  @@index([landId])
 }
 
 model BuyRequest {
-  id        String   @id @default(cuid())
-  name      String
-  phone     String
-  message   String?
-  landId    String
-  createdAt DateTime @default(now())
-  land      Land     @relation(fields: [landId], references: [id], onDelete: Cascade)
+  id                String           @id @default(cuid())
+  name              String
+  phone             String
+  message           String?
+  landId            String
+  status            BuyRequestStatus @default(PENDING)
+  assignedManagerId String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  land              Land             @relation(fields: [landId], references: [id], onDelete: Cascade)
+  assignedManager   User?            @relation("AssignedBuyRequests", fields: [assignedManagerId], references: [id])
+
+  @@index([landId])
+  @@index([assignedManagerId])
+  @@index([status])
 }
 
 model VisitRequest {
-  id        String      @id @default(cuid())
-  name      String
-  email     String
-  phone     String
-  date      DateTime
-  time      String
-  status    VisitStatus @default(PENDING)
-  qrCode    String?
-  expiresAt DateTime?
-  plotId    String
-  userId    String?
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-  feedback  Feedback[]
-  plot      Plot        @relation(fields: [plotId], references: [id], onDelete: Cascade)
-  user      User?       @relation(fields: [userId], references: [id])
+  id                String      @id @default(cuid())
+  name              String
+  email             String
+  phone             String
+  date              DateTime
+  time              String
+  status            VisitStatus @default(PENDING)
+  qrCode            String?
+  expiresAt         DateTime?
+  plotId            String
+  userId            String?
+  assignedManagerId String? // Must be the `id` of the User with the corresponding `clerkId`
+  rejectionReason   String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  feedback          Feedback[]
+  plot              Plot        @relation(fields: [plotId], references: [id], onDelete: Cascade)
+  user              User?       @relation(fields: [userId], references: [id])
+  assignedManager   User?       @relation("AssignedVisitRequests", fields: [assignedManagerId], references: [id])
+
+  @@index([plotId])
+  @@index([userId])
+  @@index([assignedManagerId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model Feedback {
@@ -147,6 +181,8 @@ model Feedback {
   visitRequest     VisitRequest @relation(fields: [visitRequestId], references: [id], onDelete: Cascade)
 
   @@unique([visitRequestId, userId])
+  @@index([userId])
+  @@index([visitRequestId])
 }
 
 model Message {
@@ -158,6 +194,10 @@ model Message {
   createdAt  DateTime @default(now())
   receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
   sender     User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([createdAt])
 }
 
 model SellRequest {
@@ -169,6 +209,49 @@ model SellRequest {
   createdAt DateTime @default(now())
   Plot      Plot     @relation(fields: [plotId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([plotId])
+  @@index([userId])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  type      NotificationType
+  title     String
+  message   String
+  read      Boolean          @default(false) // Changed from isRead to read for consistency
+  userId    String
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model Office {
+  id          String       @id @default(cuid())
+  name        String       @unique
+  latitude    Float
+  longitude   Float
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  managers    User[]       @relation("ManagerOffices")
+  attendances Attendance[]
+
+  @@index([name])
+}
+
+model Attendance {
+  id        String   @id @default(cuid())
+  manager   User     @relation(fields: [managerId], references: [id], onDelete: Cascade)
+  managerId String
+  office    Office   @relation(fields: [officeId], references: [id], onDelete: Cascade)
+  officeId  String
+  status    String   @default("PRESENT")
+  createdAt DateTime @default(now())
+
+  @@index([managerId, createdAt])
+  @@index([officeId, createdAt])
 }
 
 enum UserRole {
@@ -185,7 +268,40 @@ enum PlotStatus {
 
 enum VisitStatus {
   PENDING
+  ASSIGNED
   APPROVED
   REJECTED
+}
+
+enum BuyRequestStatus {
+  PENDING
+  ASSIGNED
+  ACCEPTED
+  REJECTED
   COMPLETED
+}
+
+enum NotificationType {
+  VISIT_REQUEST_ASSIGNED
+  BUY_REQUEST_ASSIGNED
+  VISIT_REQUEST_UPDATED
+  VISIT_REQUEST_APPROVED
+  VISIT_REQUEST_REJECTED
+  BUY_REQUEST_UPDATED
+  MANAGER_ASSIGNMENT
+  LEAVE_REQUEST_APPROVED
+  LEAVE_REQUEST_REJECTED
+}
+
+model LeaveRequest {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation("UserLeaveRequests", fields: [userId], references: [clerkId])
+  startDate       DateTime
+  endDate         DateTime
+  reason          String
+  status          String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  rejectionReason String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
