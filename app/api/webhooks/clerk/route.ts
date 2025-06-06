@@ -152,11 +152,10 @@ async function handleUserCreated(userData: {
 
     console.log(`User created in database: ${userData.clerkId}`);
   } catch (error) {
-    console.error("Error creating user:", error);
-
+    // Type guard to check if error is a Prisma error
     if (error && typeof error === "object" && "code" in error) {
-      const prismaError = error as { code: string };
-      if (prismaError.code === "P2002") {
+      // Now TypeScript knows error has a code property
+      if (error.code === "P2002") {
         console.log(
           `User ${userData.clerkId} already exists, skipping creation`
         );
@@ -164,7 +163,11 @@ async function handleUserCreated(userData: {
       }
     }
 
-    throw error;
+    console.error("Error creating user:", error);
+    return NextResponse.json(
+      { error: "Failed to create user" },
+      { status: 500 }
+    );
   }
 }
 

@@ -43,7 +43,11 @@ export default async function CamerasPage() {
   // Transform cameras data to match CameraList props
   const transformedCameras = cameras.map((camera) => ({
     ...camera,
-    plot: camera.land.plot,
+    plot: camera.land?.plot ?? {
+      title: "Unassigned",
+      location: "No location",
+      owner: null,
+    },
   }));
 
   return (

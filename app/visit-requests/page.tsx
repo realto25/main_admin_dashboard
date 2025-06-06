@@ -275,7 +275,7 @@ export default function VisitRequestsPage() {
                           <Badge variant="secondary">Waiting for Manager</Badge>
                         )}
                         {req.status === "REJECTED" && (
-                          <Badge variant="destructive">
+                          <Badge variant="secondary">
                             Rejected{" "}
                             {req.rejectionReason
                               ? `(${req.rejectionReason})`

@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
     const role = searchParams.get("role");
 
     let whereClause: any = {};
-    
+
     if (role) {
       whereClause.role = role;
     }
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
         },
       },
       orderBy: {
-        createdAt: 'desc',
+        createdAt: "desc",
       },
     });
 
@@ -48,7 +48,10 @@ export async function POST(req: NextRequest) {
     const { clerkId, name, email, role, phone } = body;
 
     if (!clerkId || !name || !email || !role) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
     }
 
     const user = await prisma.user.create({
@@ -64,15 +67,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(user);
   } catch (error) {
     console.error("Error creating user:", error);
-    
+
     // Handle unique constraint violations
-    if (error.code === 'P2002') {
-      return NextResponse.json(
-        { error: "User with this email or clerkId already exists" },
-        { status: 400 }
-      );
+    if (error && typeof error === "object" && "code" in error) {
+      const prismaError = error as { code: string };
+      if (prismaError.code === "P2002") {
+        return NextResponse.json(
+          { error: "User with this email or clerkId already exists" },
+          { status: 400 }
+        );
+      }
     }
-    
+
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
