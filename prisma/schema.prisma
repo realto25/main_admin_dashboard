@@ -16,6 +16,8 @@ model Project {
   imageUrl    String
   createdAt   DateTime @default(now())
   plots       Plot[]
+
+  @@index([name])
 }
 
 model Plot {
@@ -115,7 +117,7 @@ model Camera {
   ipAddress String
   label     String?
   createdAt DateTime @default(now())
-  landId    String?  @unique // Made optional to allow cameras on plots without lands
+  landId    String? // Removed unique constraint to allow multiple cameras per land if needed
   land      Land?    @relation(fields: [landId], references: [id], onDelete: Cascade)
   Plot      Plot[] // Camera can be associated with Plots directly
 
@@ -152,7 +154,7 @@ model VisitRequest {
   expiresAt         DateTime?
   plotId            String
   userId            String?
-  assignedManagerId String? // Must be the `id` of the User with the corresponding `clerkId`
+  assignedManagerId String?
   rejectionReason   String?
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
@@ -166,6 +168,7 @@ model VisitRequest {
   @@index([assignedManagerId])
   @@index([status])
   @@index([createdAt])
+  @@index([email])
 }
 
 model Feedback {
@@ -219,7 +222,7 @@ model Notification {
   type      NotificationType
   title     String
   message   String
-  read      Boolean          @default(false) // Changed from isRead to read for consistency
+  read      Boolean          @default(false)
   userId    String
   createdAt DateTime         @default(now())
   user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -254,6 +257,21 @@ model Attendance {
   @@index([officeId, createdAt])
 }
 
+model LeaveRequest {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation("UserLeaveRequests", fields: [userId], references: [id]) // Fixed to reference User.id
+  startDate       DateTime
+  endDate         DateTime
+  reason          String
+  status          String   @default("PENDING")
+  rejectionReason String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+}
+
 enum UserRole {
   GUEST
   CLIENT
@@ -282,26 +300,14 @@ enum BuyRequestStatus {
 }
 
 enum NotificationType {
+  VISIT_REQUEST_SUBMITTED
   VISIT_REQUEST_ASSIGNED
-  BUY_REQUEST_ASSIGNED
   VISIT_REQUEST_UPDATED
   VISIT_REQUEST_APPROVED
   VISIT_REQUEST_REJECTED
+  BUY_REQUEST_ASSIGNED
   BUY_REQUEST_UPDATED
   MANAGER_ASSIGNMENT
   LEAVE_REQUEST_APPROVED
   LEAVE_REQUEST_REJECTED
-}
-
-model LeaveRequest {
-  id              String   @id @default(uuid())
-  userId          String
-  user            User     @relation("UserLeaveRequests", fields: [userId], references: [clerkId])
-  startDate       DateTime
-  endDate         DateTime
-  reason          String
-  status          String   @default("PENDING") // PENDING, APPROVED, REJECTED
-  rejectionReason String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
 }
