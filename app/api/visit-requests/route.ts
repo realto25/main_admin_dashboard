@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
           },
         });
       });
-      console.log("Managers fetched:", managers.length);
+      
 
       return NextResponse.json(
         managers.map((manager) => ({
@@ -143,22 +143,13 @@ export async function GET(request: NextRequest) {
               },
             },
             assignedManager: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                phone: true,
-                clerkId: true,
-              },
+              select: { id: true, name: true, email: true, phone: true, clerkId: true },
               where: { role: "MANAGER" },
             },
           },
         });
       });
-      console.log(
-        `Visit requests for manager ${user.id}:`,
-        visitRequests.length
-      );
+      console.log(`Visit requests for manager ${user.id}:`, visitRequests.length);
 
       const transformedData = visitRequests.map((request) => ({
         id: request.id,
@@ -169,9 +160,7 @@ export async function GET(request: NextRequest) {
         email: request.email,
         phone: request.phone,
         qrCode:
-          request.status === "APPROVED" && request.qrCode
-            ? request.qrCode
-            : null,
+          request.status === "APPROVED" && request.qrCode ? request.qrCode : null,
         expiresAt:
           request.status === "APPROVED"
             ? new Date(
@@ -219,13 +208,7 @@ export async function GET(request: NextRequest) {
               },
             },
             assignedManager: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                phone: true,
-                clerkId: true,
-              },
+              select: { id: true, name: true, email: true, phone: true, clerkId: true },
               where: { role: "MANAGER" },
             },
           },
@@ -266,13 +249,7 @@ export async function GET(request: NextRequest) {
             },
           },
           assignedManager: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              phone: true,
-              clerkId: true,
-            },
+            select: { id: true, name: true, email: true, phone: true, clerkId: true },
             where: { role: "MANAGER" },
           },
         },
@@ -337,369 +314,228 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const url = new URL(request.url);
-    const action = url.pathname.split("/").pop();
+    const action = url.pathname.split('/').pop();
     const body = await request.json();
+    const { clerkId, reason, plotId, visitorName, visitDate, visitTime } = body;
 
-    // Handle initial visit request creation
-    if (!action || action === "visit-requests") {
-      const { name, email, phone, date, time, plotId, clerkId } = body;
+    console.log(`POST request received for action: ${action}, requestId: ${url.pathname.split('/')[3]}`);
 
-      // Validate required fields
-      if (!name || !email || !phone || !date || !time || !plotId) {
-        console.log("Missing required fields:", {
-          name,
-          email,
-          phone,
-          date,
-          time,
-          plotId,
+    if (action === "accept") {
+      const requestId = url.pathname.split('/')[3];
+      
+      const visitRequest = await withRetry(async () => {
+        return await prisma.visitRequest.findUnique({
+          where: { id: requestId },
+          include: {
+            plot: {
+              select: {
+                id: true,
+                title: true,
+                location: true,
+                project: { select: { id: true, name: true } },
+              },
+            },
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+                clerkId: true,
+              },
+            },
+            assignedManager: {
+              select: { id: true, name: true, email: true, phone: true, clerkId: true },
+            },
+          },
         });
-        return NextResponse.json(
-          { error: "Missing required fields" },
-          { status: 400 }
-        );
-      }
-
-      // Validate date and time
-      const visitDate = new Date(date);
-      if (isNaN(visitDate.getTime())) {
-        return NextResponse.json(
-          { error: "Invalid date format" },
-          { status: 400 }
-        );
-      }
-
-      // Check if plot exists
-      const plot = await prisma.plot.findUnique({
-        where: { id: plotId },
-        include: { project: true },
       });
 
-      if (!plot) {
-        return NextResponse.json({ error: "Plot not found" }, { status: 404 });
+      if (!visitRequest) {
+        console.log(`Visit request ${requestId} not found`);
+        return NextResponse.json(
+          { error: "Visit request not found" },
+          { status: 404 }
+        );
       }
 
-      // Find or create user if clerkId is provided
-      let user = null;
-      if (clerkId) {
-        user = await prisma.user.findUnique({
+      if (visitRequest.status !== "ASSIGNED") {
+        console.log(`Visit request ${requestId} is not in ASSIGNED state, current status: ${visitRequest.status}`);
+        return NextResponse.json(
+          { error: "Visit request is not in an ASSIGNED state" },
+          { status: 400 }
+        );
+      }
+
+      const manager = await withRetry(async () => {
+        return await prisma.user.findUnique({
           where: { clerkId },
         });
-      }
-
-      // Check for existing pending requests
-      const existingRequest = await prisma.visitRequest.findFirst({
-        where: {
-          plotId,
-          email,
-          status: {
-            in: ["PENDING", "ASSIGNED"],
-          },
-          date: visitDate,
-        },
       });
 
-      if (existingRequest) {
+      if (!manager || manager.role !== "MANAGER") {
+        console.log(`Invalid manager for clerkId ${clerkId}, role: ${manager?.role}`);
         return NextResponse.json(
-          {
-            error:
-              "You already have a pending visit request for this plot on this date",
-          },
-          { status: 409 }
+          { error: "Invalid manager" },
+          { status: 403 }
         );
       }
 
-      // Create visit request
-      const visitRequest = await prisma.visitRequest.create({
-        data: {
-          name,
-          email,
-          phone,
-          date: visitDate,
-          time,
-          plotId,
-          userId: user?.id,
-          status: "PENDING",
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        include: {
-          plot: {
-            include: {
-              project: true,
-            },
+      if (visitRequest.assignedManager?.clerkId !== manager.clerkId) {
+        console.log(`Manager ${manager.clerkId} is not assigned to visit request ${requestId}`);
+        return NextResponse.json(
+          { error: "You are not assigned to this visit request" },
+          { status: 403 }
+        );
+      }
+
+      const qrData = `visit://request/${requestId}?status=APPROVED&plot=${plotId}&visitor=${visitorName}&date=${visitDate}&time=${visitTime}`;
+      const qrCodeDataUrl = await generateQRCode(qrData);
+
+      const updatedRequest = await withRetry(async () => {
+        return await prisma.visitRequest.update({
+          where: { id: requestId },
+          data: {
+            status: "APPROVED",
+            qrCode: qrCodeDataUrl,
+            updatedAt: new Date(),
           },
-          user: true,
-        },
+          include: {
+            user: true,
+            plot: {
+              include: { project: true },
+            },
+            assignedManager: true,
+          },
+        });
       });
 
-      // Create notification for admins/managers
-      await prisma.notification.create({
-        data: {
-          type: "NEW_VISIT_REQUEST",
-          title: "New Visit Request",
-          message: `New visit request for ${plot.title} from ${name}`,
-          userId: user?.id, // This will be null for guest users
-          read: false,
-          createdAt: new Date(),
-        },
-      });
+      if (updatedRequest.user) {
+        await prisma.notification.create({
+          data: {
+            type: "VISIT_REQUEST_APPROVED",
+            title: "Visit Request Approved",
+            message: `Your visit request for ${updatedRequest.plot.title} has been approved by the manager.`,
+            userId: updatedRequest.user.id,
+            read: false,
+            createdAt: new Date(),
+          },
+        });
+      }
 
-      return NextResponse.json(visitRequest, { status: 201 });
+      console.log(`Visit request ${requestId} approved successfully`);
+      return NextResponse.json(updatedRequest, { status: 200 });
     }
 
-    // Handle existing accept/reject actions
-    if (action === "accept" || action === "reject") {
-      const { clerkId, reason, plotId, visitorName, visitDate, visitTime } =
-        body;
+    if (action === "reject") {
+      const requestId = url.pathname.split('/')[3];
 
-      console.log(
-        `POST request received for action: ${action}, requestId: ${
-          url.pathname.split("/")[3]
-        }`
-      );
-
-      if (action === "accept") {
-        const requestId = url.pathname.split("/")[3];
-
-        const visitRequest = await withRetry(async () => {
-          return await prisma.visitRequest.findUnique({
-            where: { id: requestId },
-            include: {
-              plot: {
-                select: {
-                  id: true,
-                  title: true,
-                  location: true,
-                  project: { select: { id: true, name: true } },
-                },
-              },
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  email: true,
-                  role: true,
-                  clerkId: true,
-                },
-              },
-              assignedManager: {
-                select: {
-                  id: true,
-                  name: true,
-                  email: true,
-                  phone: true,
-                  clerkId: true,
-                },
+      const visitRequest = await withRetry(async () => {
+        return await prisma.visitRequest.findUnique({
+          where: { id: requestId },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+                clerkId: true,
               },
             },
-          });
+            plot: {
+              select: {
+                id: true,
+                title: true,
+                location: true,
+                project: { select: { id: true, name: true } },
+              },
+            },
+            assignedManager: {
+              select: { id: true, name: true, email: true, phone: true, clerkId: true },
+            },
+          },
         });
+      });
 
-        if (!visitRequest) {
-          console.log(`Visit request ${requestId} not found`);
-          return NextResponse.json(
-            { error: "Visit request not found" },
-            { status: 404 }
-          );
-        }
-
-        if (visitRequest.status !== "ASSIGNED") {
-          console.log(
-            `Visit request ${requestId} is not in ASSIGNED state, current status: ${visitRequest.status}`
-          );
-          return NextResponse.json(
-            { error: "Visit request is not in an ASSIGNED state" },
-            { status: 400 }
-          );
-        }
-
-        const manager = await withRetry(async () => {
-          return await prisma.user.findUnique({
-            where: { clerkId },
-          });
-        });
-
-        if (!manager || manager.role !== "MANAGER") {
-          console.log(
-            `Invalid manager for clerkId ${clerkId}, role: ${manager?.role}`
-          );
-          return NextResponse.json(
-            { error: "Invalid manager" },
-            { status: 403 }
-          );
-        }
-
-        if (visitRequest.assignedManager?.clerkId !== manager.clerkId) {
-          console.log(
-            `Manager ${manager.clerkId} is not assigned to visit request ${requestId}`
-          );
-          return NextResponse.json(
-            { error: "You are not assigned to this visit request" },
-            { status: 403 }
-          );
-        }
-
-        const qrData = `visit://request/${requestId}?status=APPROVED&plot=${plotId}&visitor=${visitorName}&date=${visitDate}&time=${visitTime}`;
-        const qrCodeDataUrl = await generateQRCode(qrData);
-
-        const updatedRequest = await withRetry(async () => {
-          return await prisma.visitRequest.update({
-            where: { id: requestId },
-            data: {
-              status: "APPROVED",
-              qrCode: qrCodeDataUrl,
-              updatedAt: new Date(),
-            },
-            include: {
-              user: true,
-              plot: {
-                include: { project: true },
-              },
-              assignedManager: true,
-            },
-          });
-        });
-
-        if (updatedRequest.user) {
-          await prisma.notification.create({
-            data: {
-              type: "VISIT_REQUEST_APPROVED",
-              title: "Visit Request Approved",
-              message: `Your visit request for ${updatedRequest.plot.title} has been approved by the manager.`,
-              userId: updatedRequest.user.id,
-              read: false,
-              createdAt: new Date(),
-            },
-          });
-        }
-
-        console.log(`Visit request ${requestId} approved successfully`);
-        return NextResponse.json(updatedRequest, { status: 200 });
+      if (!visitRequest) {
+        console.log(`Visit request ${requestId} not found`);
+        return NextResponse.json(
+          { error: "Visit request not found" },
+          { status: 404 }
+        );
       }
 
-      if (action === "reject") {
-        const requestId = url.pathname.split("/")[3];
-
-        const visitRequest = await withRetry(async () => {
-          return await prisma.visitRequest.findUnique({
-            where: { id: requestId },
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  email: true,
-                  role: true,
-                  clerkId: true,
-                },
-              },
-              plot: {
-                select: {
-                  id: true,
-                  title: true,
-                  location: true,
-                  project: { select: { id: true, name: true } },
-                },
-              },
-              assignedManager: {
-                select: {
-                  id: true,
-                  name: true,
-                  email: true,
-                  phone: true,
-                  clerkId: true,
-                },
-              },
-            },
-          });
-        });
-
-        if (!visitRequest) {
-          console.log(`Visit request ${requestId} not found`);
-          return NextResponse.json(
-            { error: "Visit request not found" },
-            { status: 404 }
-          );
-        }
-
-        if (visitRequest.status !== "ASSIGNED") {
-          console.log(
-            `Visit request ${requestId} is not in ASSIGNED state, current status: ${visitRequest.status}`
-          );
-          return NextResponse.json(
-            { error: "Visit request is not in an ASSIGNED state" },
-            { status: 400 }
-          );
-        }
-
-        const manager = await withRetry(async () => {
-          return await prisma.user.findUnique({
-            where: { clerkId },
-          });
-        });
-
-        if (!manager || manager.role !== "MANAGER") {
-          console.log(
-            `Invalid manager for clerkId ${clerkId}, role: ${manager?.role}`
-          );
-          return NextResponse.json(
-            { error: "Invalid manager" },
-            { status: 403 }
-          );
-        }
-
-        if (visitRequest.assignedManager?.clerkId !== manager.clerkId) {
-          console.log(
-            `Manager ${manager.clerkId} is not assigned to visit request ${requestId}`
-          );
-          return NextResponse.json(
-            { error: "You are not assigned to this visit request" },
-            { status: 403 }
-          );
-        }
-
-        const updatedRequest = await withRetry(async () => {
-          return await prisma.visitRequest.update({
-            where: { id: requestId },
-            data: {
-              status: "REJECTED",
-              rejectionReason: reason,
-              updatedAt: new Date(),
-            },
-            include: {
-              user: true,
-              plot: {
-                include: { project: true },
-              },
-              assignedManager: true,
-            },
-          });
-        });
-
-        if (updatedRequest.user) {
-          await prisma.notification.create({
-            data: {
-              type: "VISIT_REQUEST_REJECTED",
-              title: "Visit Request Rejected",
-              message: `Your visit request for ${updatedRequest.plot.title} has been rejected by the manager. Reason: ${reason}`,
-              userId: updatedRequest.user.id,
-              read: false,
-              createdAt: new Date(),
-            },
-          });
-        }
-
-        console.log(`Visit request ${requestId} rejected successfully`);
-        return NextResponse.json(updatedRequest, { status: 200 });
+      if (visitRequest.status !== "ASSIGNED") {
+        console.log(`Visit request ${requestId} is not in ASSIGNED state, current status: ${visitRequest.status}`);
+        return NextResponse.json(
+          { error: "Visit request is not in an ASSIGNED state" },
+          { status: 400 }
+        );
       }
 
-      console.log(`Invalid action: ${action}`);
-      return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+      const manager = await withRetry(async () => {
+        return await prisma.user.findUnique({
+          where: { clerkId },
+        });
+      });
+
+      if (!manager || manager.role !== "MANAGER") {
+        console.log(`Invalid manager for clerkId ${clerkId}, role: ${manager?.role}`);
+        return NextResponse.json(
+          { error: "Invalid manager" },
+          { status: 403 }
+        );
+      }
+
+      if (visitRequest.assignedManager?.clerkId !== manager.clerkId) {
+        console.log(`Manager ${manager.clerkId} is not assigned to visit request ${requestId}`);
+        return NextResponse.json(
+          { error: "You are not assigned to this visit request" },
+          { status: 403 }
+        );
+      }
+
+      const updatedRequest = await withRetry(async () => {
+        return await prisma.visitRequest.update({
+          where: { id: requestId },
+          data: {
+            status: "REJECTED",
+            rejectionReason: reason,
+            updatedAt: new Date(),
+          },
+          include: {
+            user: true,
+            plot: {
+              include: { project: true },
+            },
+            assignedManager: true,
+          },
+        });
+      });
+
+      if (updatedRequest.user) {
+        await prisma.notification.create({
+          data: {
+            type: "VISIT_REQUEST_REJECTED",
+            title: "Visit Request Rejected",
+            message: `Your visit request for ${updatedRequest.plot.title} has been rejected by the manager. Reason: ${reason}`,
+            userId: updatedRequest.user.id,
+            read: false,
+            createdAt: new Date(),
+          },
+        });
+      }
+
+      console.log(`Visit request ${requestId} rejected successfully`);
+      return NextResponse.json(updatedRequest, { status: 200 });
     }
 
     console.log(`Invalid action: ${action}`);
-    return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid action" },
+      { status: 400 }
+    );
   } catch (error: any) {
     console.error("Error handling visit request:", {
       message: error.message,
@@ -796,13 +632,7 @@ export async function PATCH(request: NextRequest) {
           },
         },
         assignedManager: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-            clerkId: true,
-          },
+          select: { id: true, name: true, email: true, phone: true, clerkId: true },
         },
       },
     });
