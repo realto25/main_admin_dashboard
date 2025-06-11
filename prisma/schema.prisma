@@ -64,7 +64,7 @@ model Land {
   ownerId     String?
   qrCode      String?
   buyRequests BuyRequest[]
-  camera      Camera? // Removed cameraIp, as Camera model handles this
+  cameras     Camera[]     @relation("LandCameras") // Changed to one-to-many
   owner       User?        @relation("UserOwnedLands", fields: [ownerId], references: [id])
   plot        Plot         @relation("PlotLands", fields: [plotId], references: [id], onDelete: Cascade)
 
@@ -117,9 +117,9 @@ model Camera {
   ipAddress String
   label     String?
   createdAt DateTime @default(now())
-  landId    String? // Removed unique constraint to allow multiple cameras per land if needed
-  land      Land?    @relation(fields: [landId], references: [id], onDelete: Cascade)
-  Plot      Plot[] // Camera can be associated with Plots directly
+  landId    String?  // Allows multiple cameras per land
+  land      Land?    @relation("LandCameras", fields: [landId], references: [id], onDelete: Cascade)
+  Plot      Plot[]   // Camera can be associated with Plots directly
 
   @@index([landId])
 }
@@ -260,7 +260,7 @@ model Attendance {
 model LeaveRequest {
   id              String   @id @default(uuid())
   userId          String
-  user            User     @relation("UserLeaveRequests", fields: [userId], references: [id]) // Fixed to reference User.id
+  user            User     @relation("UserLeaveRequests", fields: [userId], references: [id])
   startDate       DateTime
   endDate         DateTime
   reason          String
